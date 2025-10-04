@@ -2925,6 +2925,13 @@ function checkEnemyCollisions(enemy) {
                     // 보스 파괴 시 목숨 1개 추가
                     maxLives++; // 최대 목숨 증가
                     
+                    // 보스 파괴 폭발 효과음 재생
+                    const explosionSound = new Audio('sounds/explosion.mp3');
+                    explosionSound.volume = 0.7;
+                    explosionSound.play().catch(error => {
+                        console.log('폭발 효과음 재생 실패:', error);
+                    });
+                    
                     // 큰 폭발 효과
                     explosions.push(new Explosion(
                         enemy.x + enemy.width/2,
@@ -2993,6 +3000,13 @@ function checkEnemyCollisions(enemy) {
                     if (!bullet.isSpecial) {
                         maxLives++; // 최대 목숨 증가
                     }
+                    
+                    // 보스 파괴 폭발 효과음 재생
+                    const explosionSound = new Audio('sounds/explosion.mp3');
+                    explosionSound.volume = 0.7;
+                    explosionSound.play().catch(error => {
+                        console.log('폭발 효과음 재생 실패:', error);
+                    });
                     
                     // 큰 폭발 효과
                     explosions.push(new Explosion(
@@ -3943,6 +3957,13 @@ function handleBossPattern(boss) {
         bossHealth = 0;
         updateScore(BOSS_SETTINGS.BONUS_SCORE);
         
+        // 보스 파괴 폭발 효과음 재생
+        const explosionSound = new Audio('sounds/explosion.mp3');
+        explosionSound.volume = 0.7;
+        explosionSound.play().catch(error => {
+            console.log('폭발 효과음 재생 실패:', error);
+        });
+        
         // 레벨 1~5에서 패턴 사용 기록
         if (gameLevel <= 5 && boss.singlePattern) {
             if (!levelBossPatterns.usedPatterns.includes(boss.singlePattern)) {
@@ -4255,11 +4276,11 @@ function executeBossPattern(boss, pattern, currentTime) {
             
         case BOSS_PATTERNS.SPREAD_CROSS:
             if (currentTime - boss.lastShot >= 500) {  // 0.5초마다 발사
-                // 십자 확산 패턴 - 4방향으로 각각 2-3발씩 확산 발사 (총 10발)
+                // 십자 확산 패턴 - 4방향으로 각각 1-2발씩 확산 발사 (총 5발)
                 const crossAngles = [0, Math.PI/2, Math.PI, Math.PI*3/2];
                 crossAngles.forEach((angle, index) => {
-                    // 각 방향마다 2-3발씩 발사 (총 10발이 되도록 조정)
-                    const shotsPerDirection = index < 2 ? 3 : 2; // 첫 2방향은 3발, 나머지 2방향은 2발
+                    // 각 방향마다 1-2발씩 발사 (총 5발이 되도록 조정)
+                    const shotsPerDirection = index < 2 ? 1 : 2; // 첫 2방향은 1발, 나머지 2방향은 2발
                     for (let i = 0; i < shotsPerDirection; i++) {
                         const spreadAngle = angle + (i - (shotsPerDirection - 1) / 2) * 0.15; // 확산 각도
                         createBossBullet(boss, spreadAngle, pattern);
@@ -4271,9 +4292,9 @@ function executeBossPattern(boss, pattern, currentTime) {
             
         case BOSS_PATTERNS.SPREAD_SPIRAL:
             if (currentTime - boss.lastShot >= 600) {  // 0.6초마다 발사 (간격 증가)
-                // 나선 확산 패턴 - 10방향으로 발사
-                for (let i = 0; i < 10; i++) {
-                    const angle = boss.patternAngle + (i * Math.PI * 2 / 10);
+                // 나선 확산 패턴 - 5방향으로 발사
+                for (let i = 0; i < 5; i++) {
+                    const angle = boss.patternAngle + (i * Math.PI * 2 / 5);
                     createBossBullet(boss, angle, pattern);
                 }
                 boss.patternAngle += Math.PI / 6;  // 30도씩 회전 (더 큰 각도)
@@ -4284,9 +4305,9 @@ function executeBossPattern(boss, pattern, currentTime) {
             
         case BOSS_PATTERNS.SPREAD_DIAMOND:
             if (currentTime - boss.lastShot >= 700) {  // 0.7초마다 발사
-                // 다이아몬드 확산 패턴 - 10방향으로 발사
-                for (let i = 0; i < 10; i++) {
-                    const angle = (Math.PI * 2 / 10) * i;
+                // 다이아몬드 확산 패턴 - 5방향으로 발사
+                for (let i = 0; i < 5; i++) {
+                    const angle = (Math.PI * 2 / 5) * i;
                     createBossBullet(boss, angle, pattern);
                 }
                 boss.lastShot = currentTime;
@@ -4295,9 +4316,9 @@ function executeBossPattern(boss, pattern, currentTime) {
             
         case BOSS_PATTERNS.SPREAD_BURST:
             if (currentTime - boss.lastShot >= 500) {  // 0.5초마다 발사
-                // 폭발 확산 패턴 - 10방향으로 발사
-                for (let i = 0; i < 10; i++) {
-                    const angle = (Math.PI * 2 / 10) * i;
+                // 폭발 확산 패턴 - 5방향으로 발사
+                for (let i = 0; i < 5; i++) {
+                    const angle = (Math.PI * 2 / 5) * i;
                     createBossBullet(boss, angle, pattern);
                 }
                 boss.lastShot = currentTime;
