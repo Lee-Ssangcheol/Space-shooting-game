@@ -4458,14 +4458,14 @@ function createBossBullet(boss, angle, pattern = null) {
     
     // 디버깅을 위한 로그
     if (bulletPattern && (bulletPattern.includes('heart') || bulletPattern.includes('star') || bulletPattern.includes('flower') || bulletPattern.includes('butterfly') || bulletPattern.includes('firework') || bulletPattern.includes('chaos') || bulletPattern.includes('ice'))) {
-        console.log(`총알 생성: 패턴=${bulletPattern}, 각도=${angle}, 크기=24x24`);
+        console.log(`총알 생성: 패턴=${bulletPattern}, 각도=${angle}, 크기=22x22`);
     }
     
     const bullet = {
         x: boss.x + boss.width/2,
         y: boss.y + boss.height/2,
-        width: 24,  // 보스 총알 크기 24x24 (크기 증가)
-        height: 24, // 보스 총알 크기 24x24 (크기 증가)
+        width: 22,  // 보스 총알 크기 22x22 (크기 균형 조정)
+        height: 22, // 보스 총알 크기 22x22 (크기 균형 조정)
         speed: boss.bulletSpeed, // 속도 원상복구
         angle: angle,
         isBossBullet: true,
