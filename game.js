@@ -3597,6 +3597,13 @@ function handleGameOver() {
         isGameOver = true;
         gameOverStartTime = Date.now();
         
+        // 플레이어 파괴 폭발 효과음 재생
+        const explosionSound = new Audio('sounds/explosion.mp3');
+        explosionSound.volume = 0.8;
+        explosionSound.play().catch(error => {
+            console.log('플레이어 폭발 효과음 재생 실패:', error);
+        });
+        
         // 최고 점수 저장
         const finalScore = Math.max(score, highScore);
         if (finalScore > 0) {
@@ -5234,28 +5241,6 @@ async function initializeGame() {
         
     } catch (error) {
         console.error('게임 초기화 중 오류:', error);
-    }
-}
-
-// 게임 오버 처리 함수 수정
-function handleGameOver() {
-    if (!isGameOver) {
-        isGameOver = true;
-        gameOverStartTime = Date.now();
-        
-        // 최고 점수 저장
-        const finalScore = Math.max(score, highScore);
-        if (finalScore > 0) {
-            saveHighScoreDirectly(finalScore, 'handleGameOver');
-        }
-        
-        console.log('게임 오버 - 최종 점수:', score, '최고 점수:', highScore);
-        
-        // 게임 오버 시 사운드 컨트롤 상태 초기화
-        isSoundControlActive = false;
-        
-        // 게임 오버 시 캔버스에 포커스
-        document.getElementById('gameCanvas').focus();
     }
 }
 
