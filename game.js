@@ -1203,8 +1203,8 @@ const ScoreManager = {
     async init() {
         try {
             console.log('ScoreManager 초기화 시작');
-            // Electron IPC를 통해 점수 로드
-            highScore = await window.electron.ipcRenderer.invoke('load-score');
+            // 웹 브라우저 환경에서 점수 로드
+            highScore = await loadHighScore();
             
             // 현재 점수 초기화
             score = 0;
@@ -1221,11 +1221,9 @@ const ScoreManager = {
         try {
             if (score > highScore) {
                 highScore = score;
-                // Electron IPC를 통해 점수 저장
-                const saved = await window.electron.ipcRenderer.invoke('save-score', highScore);
-                if (saved) {
-                    console.log('점수 저장 성공:', highScore);
-                }
+                // 웹 브라우저 환경에서 점수 저장
+                await saveHighScoreDirectly(highScore, 'ScoreManager.save');
+                console.log('점수 저장 성공:', highScore);
             }
         } catch (error) {
             console.error('점수 저장 실패:', error);
@@ -1234,8 +1232,8 @@ const ScoreManager = {
 
     async getHighScore() {
         try {
-            // Electron IPC를 통해 점수 로드
-            return await window.electron.ipcRenderer.invoke('load-score');
+            // 웹 브라우저 환경에서 점수 로드
+            return await loadHighScore();
         } catch (error) {
             console.error('최고 점수 로드 실패:', error);
             return 0;
@@ -1244,8 +1242,9 @@ const ScoreManager = {
 
     async reset() {
         try {
-            // Electron IPC를 통해 점수 초기화
-            await window.electron.ipcRenderer.invoke('reset-score');
+            // 웹 브라우저 환경에서 점수 초기화
+            localStorage.removeItem('highScore');
+            localStorage.removeItem('highScore_backup');
             
             score = 0;
             levelScore = 0;
@@ -3286,10 +3285,9 @@ window.addEventListener('load', async () => {
     console.log('페이지 로드 완료');
     
     try {
-        // 버전 정보 로드 - Electron 환경에서는 package.json 접근이 제한적이므로 기본값 사용
+        // 버전 정보 로드
         try {
-            // Electron 환경에서는 package.json에 직접 접근할 수 없으므로 기본값 사용
-            gameVersion = '1.0.0-202506161826'; // package.json의 현재 버전으로 설정
+            gameVersion = '1.0.0-202506161826'; // 웹 버전으로 설정
             console.log('버전 정보 로드 성공:', gameVersion);
         } catch (e) {
             console.warn('버전 정보 로드 실패:', e);
