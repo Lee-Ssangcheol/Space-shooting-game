@@ -5493,3 +5493,134 @@ function resetPatternUsage() {
     console.log('패턴 사용 기록 초기화됨');
     console.log('사용 가능한 패턴들:', levelBossPatterns.patternSequence.map(p => p).join(', '));
 }
+
+// 효과음 패널 설정 함수
+function createSoundControlPanel() {
+    const panel = document.createElement('div');
+    panel.id = 'sound-control-panel';
+    panel.style.position = 'static'; // fixed에서 static으로 변경
+    panel.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+    panel.style.padding = '12px';
+    panel.style.borderRadius = '8px';
+    panel.style.color = 'white';
+    panel.style.zIndex = '1000';
+    panel.style.cursor = 'move';
+    panel.style.userSelect = 'none';
+    panel.style.width = '340px';
+    panel.style.height = 'fit-content';
+    panel.style.display = 'flex';
+    panel.style.flexDirection = 'column';
+    panel.style.gap = '5px';
+    panel.style.boxSizing = 'border-box';
+    panel.style.boxShadow = '0 2px 12px rgba(0,0,0,0.2)';
+    panel.style.margin = '0 auto'; // 가운데 정렬
+
+    // 볼륨 컨트롤 추가
+    const volumeControl = document.createElement('div');
+    volumeControl.style.display = 'flex';
+    volumeControl.style.alignItems = 'center';
+    volumeControl.style.gap = '12px';
+    volumeControl.style.width = '100%';
+    volumeControl.innerHTML = `
+        <label style="white-space: nowrap;">효과음 볼륨:</label>
+        <input type="range" min="0" max="100" value="10" id="sfx-volume" style="flex: 1; min-width: 120px; max-width: 200px;"> 
+        <span id="volume-value" style="min-width: 40px; text-align:right;">10%</span>
+    `;
+    panel.appendChild(volumeControl);
+
+    // 캔버스 컨테이너 다음에 패널 추가
+    const canvasContainer = document.getElementById('canvas-container');
+    if (canvasContainer && canvasContainer.parentNode) {
+        canvasContainer.parentNode.insertBefore(panel, canvasContainer.nextSibling);
+    } else {
+        // fallback: body에 추가
+        document.body.appendChild(panel);
+    }
+    setupSoundControlEvents();
+    setupPanelDrag(panel);
+}
+
+function setupSoundControlEvents() {
+    const sfxVolumeSlider = document.getElementById('sfx-volume');
+    const volumeValue = document.getElementById('volume-value');
+    
+    if (sfxVolumeSlider && volumeValue) {
+        // 초기 볼륨 설정 - 10%로 고정
+        const initialVolume = 10;
+        sfxVolumeSlider.value = initialVolume;
+        volumeValue.textContent = `${initialVolume}%`;
+        
+        // 사운드 매니저도 10%로 설정
+        gameSoundManager.setVolume(0.1);
+        
+        sfxVolumeSlider.addEventListener('input', function(e) {
+            e.stopPropagation();  // 이벤트 전파 중단
+            const volume = this.value / 100;  // 0-1 사이의 값으로 변환
+            volumeValue.textContent = `${this.value}%`;
+            
+            // 사운드 매니저를 통해 볼륨 업데이트
+            gameSoundManager.setVolume(volume);
+        });
+
+        // 마우스 이벤트가 다른 요소에 영향을 주지 않도록 처리
+        sfxVolumeSlider.addEventListener('mousedown', function(e) {
+            e.stopPropagation();
+        });
+        
+        sfxVolumeSlider.addEventListener('mouseup', function(e) {
+            e.stopPropagation();
+            this.blur();  // 포커스 제거
+        });
+    }
+}
+
+function setupPanelDrag(panel) {
+    let isDragging = false;
+    let startX, startY, startLeft, startTop;
+
+    // 드래그 시작
+    panel.addEventListener('mousedown', function(e) {
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'LABEL' || e.target.tagName === 'SPAN') {
+            return; // 입력 요소에서는 드래그하지 않음
+        }
+        
+        isDragging = true;
+        startX = e.clientX;
+        startY = e.clientY;
+        
+        // 현재 위치 가져오기
+        const rect = panel.getBoundingClientRect();
+        startLeft = rect.left;
+        startTop = rect.top;
+        
+        panel.style.position = 'fixed';
+        panel.style.left = startLeft + 'px';
+        panel.style.top = startTop + 'px';
+        
+        document.addEventListener('mousemove', handleDrag);
+        document.addEventListener('mouseup', handleDragEnd);
+        
+        e.preventDefault();
+    });
+
+    function handleDrag(e) {
+        if (!isDragging) return;
+        
+        const deltaX = e.clientX - startX;
+        const deltaY = e.clientY - startY;
+        
+        panel.style.left = (startLeft + deltaX) + 'px';
+        panel.style.top = (startTop + deltaY) + 'px';
+    }
+
+    function handleDragEnd() {
+        isDragging = false;
+        document.removeEventListener('mousemove', handleDrag);
+        document.removeEventListener('mouseup', handleDragEnd);
+    }
+}
+
+// 페이지 로드 시 효과음 패널 설정
+document.addEventListener('DOMContentLoaded', function() {
+    createSoundControlPanel();
+});
