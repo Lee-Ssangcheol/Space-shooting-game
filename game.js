@@ -1,13 +1,205 @@
 // 캔버스 설정
 const canvas = document.getElementById('gameCanvas');
-canvas.width = 750;
-canvas.height = 800;
 const ctx = canvas.getContext('2d');
 
-// 오디오 요소 가져오기
-const shootSound = document.getElementById('shootSound');
-const explosionSound = document.getElementById('explosionSound');
-const collisionSound = document.getElementById('collisionSound');
+// 캔버스 크기 조정 함수
+function resizeCanvas() {
+    const container = document.getElementById('canvas-container');
+    const containerRect = container.getBoundingClientRect();
+    const maxWidth = Math.min(containerRect.width - 20, 750);
+    const maxHeight = Math.min(containerRect.height - 20, 800);
+    
+    const scale = Math.min(maxWidth / 750, maxHeight / 800);
+    const newWidth = 750 * scale;
+    const newHeight = 800 * scale;
+    
+    canvas.style.width = newWidth + 'px';
+    canvas.style.height = newHeight + 'px';
+}
+
+// 창 크기 변경 시 캔버스 크기 조정
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+// 게임 사운드 매니저 클래스
+class GameSoundManager {
+    constructor() {
+        this.sounds = {};
+        this.volume = 0.5;
+        this.enabled = true;
+        this.audioContext = null;
+        this.gainNode = null;
+        this.useWebAudio = false;
+    }
+
+    async initialize() {
+        try {
+            // Web Audio API 초기화 시도
+            this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            this.gainNode = this.audioContext.createGain();
+            this.gainNode.connect(this.audioContext.destination);
+            this.gainNode.gain.value = this.volume;
+            this.useWebAudio = true;
+            console.log('Web Audio API 초기화 성공');
+        } catch (error) {
+            console.warn('Web Audio API 초기화 실패, HTML5 Audio 사용:', error);
+            this.useWebAudio = false;
+        }
+
+        // 사운드 파일들 로드
+        const soundFiles = [
+            { name: 'shoot', path: 'sounds/shoot.mp3' },
+            { name: 'explosion', path: 'sounds/explosion.mp3' },
+            { name: 'collision', path: 'sounds/collision.mp3' },
+            { name: 'levelup', path: 'sounds/levelup.mp3' },
+            { name: 'warning', path: 'sounds/warning.mp3' }
+        ];
+
+        if (this.useWebAudio) {
+            await this.loadSoundsWithWebAudioAPI(soundFiles);
+        } else {
+            await this.loadSoundsWithHTML5Audio(soundFiles);
+        }
+    }
+
+    async loadSoundsWithWebAudioAPI(soundFiles) {
+        for (const soundFile of soundFiles) {
+            try {
+                const response = await fetch(soundFile.path);
+                const arrayBuffer = await response.arrayBuffer();
+                const audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
+                this.sounds[soundFile.name] = audioBuffer;
+                console.log(`사운드 로드 성공 (Web Audio): ${soundFile.name}`);
+            } catch (error) {
+                console.warn(`사운드 로드 실패 (Web Audio): ${soundFile.name}`, error);
+                // HTML5 Audio로 폴백
+                await this.loadSingleSoundWithHTML5Audio(soundFile.name, soundFile.path);
+            }
+        }
+    }
+
+    async loadSoundsWithHTML5Audio(soundFiles) {
+        for (const soundFile of soundFiles) {
+            await this.loadSingleSoundWithHTML5Audio(soundFile.name, soundFile.path);
+        }
+    }
+
+    async loadSingleSoundWithHTML5Audio(soundName, soundPath) {
+        return new Promise((resolve) => {
+            const audio = new Audio();
+            audio.preload = 'auto';
+            audio.src = soundPath;
+            
+            const onCanPlay = () => {
+                audio.removeEventListener('canplaythrough', onCanPlay);
+                audio.removeEventListener('error', onError);
+                this.sounds[soundName] = audio;
+                console.log(`사운드 로드 성공 (HTML5): ${soundName}`);
+                resolve();
+            };
+
+            const onError = (e) => {
+                audio.removeEventListener('canplaythrough', onCanPlay);
+                audio.removeEventListener('error', onError);
+                console.warn(`사운드 로드 실패 (HTML5): ${soundName}`, e);
+                resolve();
+            };
+
+            audio.addEventListener('canplaythrough', onCanPlay);
+            audio.addEventListener('error', onError);
+            audio.load();
+        });
+    }
+
+    async play(soundName, options = {}) {
+        if (!this.enabled || !this.sounds[soundName]) {
+            return;
+        }
+
+        const volume = options.volume !== undefined ? options.volume : this.volume;
+        
+        if (this.useWebAudio && this.sounds[soundName] instanceof AudioBuffer) {
+            await this.playWithWebAudioAPI(soundName, volume);
+        } else {
+            await this.playWithHTML5Audio(soundName, volume);
+        }
+    }
+
+    async playWithWebAudioAPI(soundName, volume) {
+        try {
+            const source = this.audioContext.createBufferSource();
+            source.buffer = this.sounds[soundName];
+            
+            const gainNode = this.audioContext.createGain();
+            gainNode.gain.value = volume;
+            
+            source.connect(gainNode);
+            gainNode.connect(this.audioContext.destination);
+            
+            source.start(0);
+            console.log(`사운드 재생 (Web Audio): ${soundName}`);
+        } catch (error) {
+            console.warn(`사운드 재생 실패 (Web Audio): ${soundName}`, error);
+        }
+    }
+
+    async playWithHTML5Audio(soundName, volume) {
+        try {
+            const audio = this.sounds[soundName];
+            if (audio && audio.readyState >= 2) {
+                audio.currentTime = 0;
+                audio.volume = volume;
+                
+                const playPromise = audio.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(error => {
+                        console.warn(`사운드 재생 실패 (HTML5): ${soundName}`, error);
+                    });
+                }
+            }
+        } catch (error) {
+            console.warn(`사운드 재생 실패 (HTML5): ${soundName}`, error);
+        }
+    }
+
+    stop(soundName) {
+        if (this.sounds[soundName] && this.sounds[soundName].pause) {
+            this.sounds[soundName].pause();
+            this.sounds[soundName].currentTime = 0;
+        }
+    }
+
+    stopAll() {
+        Object.values(this.sounds).forEach(sound => {
+            if (sound && sound.pause) {
+                sound.pause();
+                sound.currentTime = 0;
+            }
+        });
+    }
+
+    setVolume(volume) {
+        this.volume = Math.max(0, Math.min(1, volume));
+        if (this.gainNode) {
+            this.gainNode.gain.value = this.volume;
+        }
+    }
+
+    setEnabled(enabled) {
+        this.enabled = enabled;
+    }
+
+    getVolume() {
+        return this.volume;
+    }
+
+    isEnabled() {
+        return this.enabled;
+    }
+}
+
+// 전역 사운드 매니저 인스턴스
+const gameSoundManager = new GameSoundManager();
 
 // 동적으로 오디오 요소 생성 및 경로 자동 감지 (경고음 매니저)
 let warningSound = null;
@@ -105,20 +297,13 @@ function playWarningSound() {
     WarningSoundManager.play();
 }
 
-// 사운드 설정
-shootSound.volume = 0.4;  // 발사음 볼륨 증가
-explosionSound.volume = 0.6;  // 폭발음 볼륨 조정
-collisionSound.volume = 0.5;  // 충돌음 볼륨 조정
+// 사운드 설정은 GameSoundManager에서 처리됨
 
 // 충돌 사운드 재생 시간 제어를 위한 변수 추가
 let lastCollisionTime = 0;
-const collisionSoundCooldown = 300;  // 충돌음 쿨다운 시간 증가
+const soundCooldown = 300;  // 사운드 쿨다운 시간 증가
 
-// 충돌 사운드 길이 제어
-collisionSound.addEventListener('loadedmetadata', () => {
-    // 사운드 길이를 0.8초로 제한
-    collisionSound.duration = Math.min(collisionSound.duration, 0.8);
-});
+// 충돌 사운드 길이 제어는 GameSoundManager에서 처리됨
 
 // 플레이어 우주선
 const player = {
@@ -126,7 +311,7 @@ const player = {
     y: canvas.height - 80,
     width: 40,
     height: 40,
-    speed: 8
+    speed: 4  // 6에서 4로 더 감소 (33% 추가 감소)
 };
 
 // 두 번째 비행기
@@ -135,7 +320,7 @@ const secondPlane = {
     y: canvas.height - 80,
     width: 40,
     height: 40,
-    speed: 8
+    speed: 4  // 6에서 4로 더 감소 (33% 추가 감소)
 };
 
 // 게임 상태 변수 설정
@@ -144,7 +329,7 @@ let enemies = [];         // 적 배열
 let explosions = [];      // 폭발 효과 배열
 let gameLevel = 1;        // 게임 레벨
 let levelScore = 0;       // 레벨 점수
-let levelUpScore = 1000;  // 레벨업에 필요한 점수
+let levelUpScore = 3000;  // 레벨업에 필요한 점수 (레벨1->2는 3000점)
 let score = 0;           // 현재 점수
 let highScore = 0;       // 최고 점수 (초기값 0으로 설정)
 let hasSecondPlane = false;  // 두 번째 비행기 보유 여부
@@ -161,12 +346,12 @@ let suppressCollisionSfxUntil = 0; // 경고음 우선 재생을 위한 충돌�
 let gameOverStartTime = null;  // 게임 오버 시작 시간
 let isSnakePatternActive = false;  // 뱀 패턴 활성화 상태
 let snakePatternTimer = 0;  // 뱀 패턴 타이머
-let snakePatternDuration = 10000;  // 뱀 패턴 지속 시간 (10초)
+let snakePatternDuration = 15000;  // 뱀 패턴 지속 시간 (10초에서 15초로 증가)
 let snakeEnemies = [];  // 뱀 패턴의 적군 배열
 let snakePatternInterval = 0;  // 뱀 패턴 생성 간격
 let snakeGroups = [];  // 뱀 패턴 그룹 배열
 let lastSnakeGroupTime = 0;  // 마지막 뱀 그룹 생성 시간
-const snakeGroupInterval = 1500;  // 그룹 생성 간격 (1.5초로 단축)
+const snakeGroupInterval = 2500;  // 그룹 생성 간격 (1.5초에서 2.5초로 증가)
 const maxSnakeGroups = 3;  // 최대 동시 그룹 수
 let gameVersion = '1.0.0-202506161826';  // 게임 버전
 
@@ -858,61 +1043,61 @@ const keys = {
 // 난이도 설정
 const difficultySettings = {
     1: { // 초급
-        enemySpeed: 2,
-        enemySpawnRate: 0.02,
-        horizontalSpeedRange: 2,
+        enemySpeed: 1,  // 1.5에서 1로 더 감소
+        enemySpawnRate: 0.01,  // 0.015에서 0.01로 더 감소
+        horizontalSpeedRange: 1,  // 1.5에서 1로 더 감소
         patternChance: 0.2,
         maxEnemies: 5,
-        bossHealth: 1500,  // 3000 → 1500
-        bossSpawnInterval: 10000, // 10초
+        bossHealth: 1500,
+        bossSpawnInterval: 10000,
         powerUpChance: 0.1,
         bombDropChance: 0.1,
         dynamiteDropChance: 0.05
     },
     2: { // 중급
-        enemySpeed: 3,
-        enemySpawnRate: 0.03,
-        horizontalSpeedRange: 3,
+        enemySpeed: 1.5,  // 2.5에서 1.5로 더 감소
+        enemySpawnRate: 0.015,  // 0.025에서 0.015로 더 감소
+        horizontalSpeedRange: 1.5,  // 2.5에서 1.5로 더 감소
         patternChance: 0.4,
         maxEnemies: 8,
-        bossHealth: 2000,  // 4000 → 2000
-        bossSpawnInterval: 10000, // 10초
+        bossHealth: 2000,
+        bossSpawnInterval: 10000,
         powerUpChance: 0.15,
         bombDropChance: 0.15,
         dynamiteDropChance: 0.1
     },
     3: { // 고급
-        enemySpeed: 4,
-        enemySpawnRate: 0.04,
-        horizontalSpeedRange: 4,
+        enemySpeed: 2,  // 3.5에서 2로 더 감소
+        enemySpawnRate: 0.02,  // 0.035에서 0.02로 더 감소
+        horizontalSpeedRange: 2,  // 3.5에서 2로 더 감소
         patternChance: 0.6,
         maxEnemies: 12,
-        bossHealth: 2500,  // 5000 → 2500
-        bossSpawnInterval: 10000, // 10초
+        bossHealth: 2500,
+        bossSpawnInterval: 10000,
         powerUpChance: 0.2,
         bombDropChance: 0.2,
         dynamiteDropChance: 0.15
     },
     4: { // 전문가
-        enemySpeed: 5,
-        enemySpawnRate: 0.05,
-        horizontalSpeedRange: 5,
+        enemySpeed: 2.5,  // 4.5에서 2.5로 더 감소
+        enemySpawnRate: 0.025,  // 0.045에서 0.025로 더 감소
+        horizontalSpeedRange: 2.5,  // 4.5에서 2.5로 더 감소
         patternChance: 0.8,
         maxEnemies: 15,
-        bossHealth: 3000,  // 6000 → 3000
-        bossSpawnInterval: 10000, // 10초
+        bossHealth: 3000,
+        bossSpawnInterval: 10000,
         powerUpChance: 0.25,
         bombDropChance: 0.25,
         dynamiteDropChance: 0.2
     },
     5: { // 마스터
-        enemySpeed: 6,
-        enemySpawnRate: 0.06,
-        horizontalSpeedRange: 6,
+        enemySpeed: 3,  // 5.5에서 3으로 더 감소
+        enemySpawnRate: 0.03,  // 0.055에서 0.03으로 더 감소
+        horizontalSpeedRange: 3,  // 5.5에서 3으로 더 감소
         patternChance: 1.0,
         maxEnemies: 20,
-        bossHealth: 3500,  // 7000 → 3500
-        bossSpawnInterval: 10000, // 10초
+        bossHealth: 3500,
+        bossSpawnInterval: 10000,
         powerUpChance: 0.3,
         bombDropChance: 0.3,
         dynamiteDropChance: 0.25
@@ -1416,9 +1601,9 @@ async function initializeGame() {
         lastFireTime = 0;
         isSpacePressed = false;
         spacePressTime = 0;
-        fireDelay = 600;
-        continuousFireDelay = 50;
-        bulletSpeed = 12;
+        fireDelay = 500;  // 800에서 500으로 감소 - 더 빠른 연속 발사 전환
+        continuousFireDelay = 50;  // 25에서 50으로 증가 - 시각적 흐름 개선
+        bulletSpeed = 7;  // 10에서 7로 더 감소
         baseBulletSize = 4.5;
         isContinuousFire = false;
         canFire = true;
@@ -1519,7 +1704,7 @@ function restartGame() {
     score = 0;
     levelScore = 0;
     gameLevel = 1;
-    levelUpScore = 1000;
+    levelUpScore = 3000; // 레벨1->2는 3000점
     
     // 6. 특수무기 관련 상태 초기화
     specialWeaponCharged = false;
@@ -1548,9 +1733,9 @@ function restartGame() {
     lastFireTime = 0;
     isSpacePressed = false;
     spacePressTime = 0;
-    fireDelay = 600;
-    continuousFireDelay = 50;
-    bulletSpeed = 12;
+    fireDelay = 500;  // 800에서 500으로 감소 - 더 빠른 연속 발사 전환
+    continuousFireDelay = 50;  // 25에서 50으로 증가 - 시각적 흐름 개선
+    bulletSpeed = 7;  // 12에서 7로 수정
     baseBulletSize = 4.5;
     isContinuousFire = false;
     canFire = true;
@@ -1950,8 +2135,8 @@ function startSnakePattern() {
         mirrorOffset: Math.random() * canvas.width,
         patternChangeTimer: 0,
         patternChangeInterval: 5000 + Math.random() * 3000, // 패턴 변경 간격
-        currentSpeed: 2 + Math.random() * 2,
-        maxSpeed: 5 + Math.random() * 3
+        currentSpeed: 0.896 + Math.random() * 0.896,  // 1.12 + Math.random() * 1.12에서 20% 추가 감소
+        maxSpeed: 2.24 + Math.random() * 1.344  // 2.8 + Math.random() * 1.68에서 20% 추가 감소
     };
     
     // 첫 번째 적 생성
@@ -2085,13 +2270,7 @@ function handleCollision() {
             }
             // 충돌음은 충분히 크게 재생 (전역볼륨이 낮아도 최소 0.8 보장)
             const baseVol = isMuted ? 0 : Math.min(1, Math.max(0, globalVolume));
-            const finalVol = isMuted ? 0 : Math.max(0.8, baseVol);
-            collisionSound.volume = finalVol;
-            collisionSound.playbackRate = 1.0;
-            collisionSound.currentTime = 0;
-            collisionSound.play().catch(error => {
-                console.log('오디오 재생 실패:', error);
-            });
+            gameSoundManager.play('collision', { volume: 0.5 });
         } catch (e) {}
     }
 }
@@ -2426,7 +2605,7 @@ function gameLoop() {
         
         // 보스 체크 및 생성
         const currentTime = Date.now();
-        if (!bossActive) {  // bossDestroyed 조건 제거
+        if (!bossActive) {  // 보스가 활성화되지 않은 상태에서만 생성
             const timeSinceLastBoss = currentTime - lastBossSpawnTime;
             
             // 레벨 1 이상이고 시간 조건을 만족하면 보스 생성
@@ -2436,9 +2615,17 @@ function gameLoop() {
                     lastBossSpawnTime,
                     timeSinceLastBoss,
                     interval: BOSS_SETTINGS.SPAWN_INTERVAL,
-                    gameLevel
+                    gameLevel,
+                    bossActive
                 });
                 createBoss();
+            } else {
+                console.log('보스 생성 조건 불만족:', {
+                    gameLevel,
+                    timeSinceLastBoss,
+                    requiredInterval: BOSS_SETTINGS.SPAWN_INTERVAL,
+                    bossActive
+                });
             }
         } else {
             // 보스가 존재하는 경우 보스 패턴 처리
@@ -2610,7 +2797,7 @@ function handleSnakePattern() {
                 if (currentTime - group.patternChangeTimer >= group.patternChangeInterval * 0.7) { // 더 빠른 패턴 변경
                     group.patternType = getRandomPatternType();
                     group.patternChangeTimer = currentTime;
-                    group.currentSpeed = Math.min(group.currentSpeed * 1.3, group.maxSpeed); // 더 빠른 속도 증가
+                    group.currentSpeed = Math.min(group.currentSpeed * 1.064, group.maxSpeed); // 1.08에서 1.064로 감소 (20% 추가 감소)
                 }
                 
                 // 첫 번째 적의 이동 패턴
@@ -2621,14 +2808,14 @@ function handleSnakePattern() {
                         const baseX = group.startX;
                         const waveX = Math.sin(enemy.angle * group.frequency * 1.5) * group.amplitude * 1.2; // 더 큰 진폭과 빠른 주기
                         enemy.x = baseX + waveX;
-                        enemy.y += enemy.speed * 1.5; // 더 빠른 하강
+                        enemy.y += enemy.speed * 1.05; // 1.5에서 1.05로 감소 (30% 추가 감소)
                         // 추가적인 좌우 흔들림
                         enemy.x += Math.sin(enemy.angle * 2) * 3;
                         break;
                         
                     case PATTERN_TYPES.VERTICAL:
                         // 세로 움직임 - 더 역동적인 흔들림
-                        enemy.y += enemy.speed * 1.4; // 더 빠른 하강
+                        enemy.y += enemy.speed * 0.98; // 1.4에서 0.98로 감소 (30% 추가 감소)
                         enemy.x = group.startX + Math.sin(enemy.angle * 1.5) * 80; // 더 큰 진폭과 빠른 주기
                         enemy.angle += 0.05; // 더 빠른 각도 변화
                         // 추가적인 상하 움직임
@@ -2637,8 +2824,8 @@ function handleSnakePattern() {
                         
                     case PATTERN_TYPES.DIAGONAL:
                         // 대각선 움직임 - 더 급격하게
-                        enemy.x += enemy.speed * group.direction * 2; // 더 빠른 좌우 이동
-                        enemy.y += enemy.speed * 1.5; // 더 빠른 하강
+                        enemy.x += enemy.speed * group.direction * 0.896; // 1.12에서 0.896으로 감소 (20% 추가 감소)
+                        enemy.y += enemy.speed * 0.47; // 0.672에서 0.47로 감소 (30% 추가 감소)
                         if (enemy.x <= 0 || enemy.x >= canvas.width - enemy.width) {
                             group.direction *= -1;
                             enemy.y += 40; // 더 큰 점프
@@ -2649,7 +2836,7 @@ function handleSnakePattern() {
                         
                     case PATTERN_TYPES.HORIZONTAL:
                         // 가로 움직임 - 더 역동적으로
-                        enemy.x += enemy.speed * group.direction * 1.4;
+                        enemy.x += enemy.speed * group.direction * 0.64; // 0.8에서 0.64로 감소 (20% 추가 감소)
                         enemy.y = group.startY + Math.sin(enemy.angle) * 60;
                         enemy.angle += 0.04;
                         if (enemy.x <= 0 || enemy.x >= canvas.width - enemy.width) {
@@ -2660,8 +2847,8 @@ function handleSnakePattern() {
                         
                     case PATTERN_TYPES.SPIRAL:
                         // 나선형 움직임 - 더 복잡하게
-                        group.spiralAngle += 0.08;
-                        group.spiralRadius += 0.8;
+                        group.spiralAngle += 0.036; // 0.045에서 0.036으로 감소 (20% 추가 감소)
+                        group.spiralRadius += 0.36; // 0.45에서 0.36으로 감소 (20% 추가 감소)
                         enemy.x = group.startX + Math.cos(group.spiralAngle) * group.spiralRadius;
                         enemy.y = group.startY + Math.sin(group.spiralAngle) * group.spiralRadius;
                         break;
@@ -2670,14 +2857,14 @@ function handleSnakePattern() {
                         // 파도형 움직임
                         group.waveAngle += group.waveFrequency;
                         enemy.x = group.startX + Math.sin(group.waveAngle) * group.waveAmplitude;
-                        enemy.y += enemy.speed * 1.1;
+                        enemy.y += enemy.speed * 0.347; // 0.496에서 0.347로 감소 (30% 추가 감소)
                         break;
                         
                     case PATTERN_TYPES.ZIGZAG:
                         // 지그재그 움직임
                         group.zigzagAngle += group.zigzagFrequency;
                         enemy.x = group.startX + Math.sin(group.zigzagAngle) * group.zigzagAmplitude;
-                        enemy.y += enemy.speed * 1.4;
+                        enemy.y += enemy.speed * 0.437; // 0.624에서 0.437로 감소 (30% 추가 감소)
                         break;
                         
                     case PATTERN_TYPES.CIRCLE:
@@ -2685,16 +2872,16 @@ function handleSnakePattern() {
                         group.circleAngle += group.circleSpeed;
                         enemy.x = group.startX + Math.cos(group.circleAngle) * group.circleRadius;
                         enemy.y = group.startY + Math.sin(group.circleAngle) * group.circleRadius;
-                        group.startY += enemy.speed * 0.5;
+                        group.startY += enemy.speed * 0.157; // 0.224에서 0.157로 감소 (30% 추가 감소)
                         break;
                         
                     case PATTERN_TYPES.VORTEX:
                         // 소용돌이 움직임
                         group.vortexAngle += group.vortexSpeed;
-                        group.vortexRadius += 0.5;
+                        group.vortexRadius += 0.224; // 0.28에서 0.224로 감소 (20% 추가 감소)
                         enemy.x = group.startX + Math.cos(group.vortexAngle) * group.vortexRadius;
                         enemy.y = group.startY + Math.sin(group.vortexAngle) * group.vortexRadius;
-                        group.startY += enemy.speed * 0.3;
+                        group.startY += enemy.speed * 0.095; // 0.136에서 0.095로 감소 (30% 추가 감소)
                         break;
                         
                     case PATTERN_TYPES.CHASE:
@@ -2715,7 +2902,7 @@ function handleSnakePattern() {
                         // 튀어오르는 움직임
                         group.bounceAngle += group.bounceSpeed;
                         enemy.x = group.startX + Math.sin(group.bounceAngle) * group.bounceHeight;
-                        enemy.y += enemy.speed + Math.abs(Math.sin(group.bounceAngle)) * 3;
+                        enemy.y += enemy.speed + Math.abs(Math.sin(group.bounceAngle)) * 0.941; // 1.344에서 0.941로 감소 (30% 추가 감소)
                         break;
                         
                     case PATTERN_TYPES.MIRROR:
@@ -2724,7 +2911,7 @@ function handleSnakePattern() {
                         const targetMirrorX = mirrorX + (group.mirrorOffset - canvas.width / 2);
                         const dxMirror = targetMirrorX - enemy.x;
                         enemy.x += dxMirror * 0.03;
-                        enemy.y += enemy.speed * 1.2;
+                        enemy.y += enemy.speed * 0.375; // 0.536에서 0.375로 감소 (30% 추가 감소)
                         break;
                 }
             } else {
@@ -2764,10 +2951,7 @@ function handleSnakePattern() {
                         updateScore(20); //뱀 패턴 비행기 한 대당 획득 점수
                         // 뱀패턴 효과음 재생
                         applyGlobalVolume();
-                        shootSound.currentTime = 0;
-                        shootSound.play().catch(error => {
-                            console.log('오디오 재생 실패:', error);
-                        });
+                        gameSoundManager.play('shoot', { volume: 0.4 });
                         enemy.isHit = true;
                         return false;
                     }
@@ -2831,12 +3015,10 @@ function checkEnemyCollisions(enemy) {
                     // 보스 파괴 시 목숨 1개 추가
                     maxLives++; // 최대 목숨 증가
                     
-                    // 보스 파괴 폭발 효과음 재생
-                    const explosionSound = new Audio('sounds/explosion.mp3');
-                    explosionSound.volume = 0.7;
-                    explosionSound.play().catch(error => {
-                        console.log('폭발 효과음 재생 실패:', error);
-                    });
+                    // 보스 파괴 시간 기록 (다음 보스 생성까지의 쿨다운 적용)
+                    lastBossSpawnTime = Date.now();
+                    
+                    gameSoundManager.play('explosion', { volume: 0.7 });
                     
                     // 큰 폭발 효과
                     explosions.push(new Explosion(
@@ -2882,11 +3064,7 @@ function checkEnemyCollisions(enemy) {
                 bossHealth = enemy.health;
                 
                 // 보스 피격음 재생
-                applyGlobalVolume();
-                collisionSound.currentTime = 0;
-                collisionSound.play().catch(error => {
-                    console.log('오디오 재생 실패:', error);
-                });
+                gameSoundManager.play('collision', { volume: 0.5 });
                 
                 // 피격 시간이 전체 출현 시간의 50%를 넘으면 파괴
                 const totalTime = currentTime - enemy.lastUpdateTime;
@@ -2907,12 +3085,10 @@ function checkEnemyCollisions(enemy) {
                         maxLives++; // 최대 목숨 증가
                     }
                     
-                    // 보스 파괴 폭발 효과음 재생
-                    const explosionSound = new Audio('sounds/explosion.mp3');
-                    explosionSound.volume = 0.7;
-                    explosionSound.play().catch(error => {
-                        console.log('폭발 효과음 재생 실패:', error);
-                    });
+                    // 보스 파괴 시간 기록 (다음 보스 생성까지의 쿨다운 적용)
+                    lastBossSpawnTime = Date.now();
+                    
+                    gameSoundManager.play('explosion', { volume: 0.7 });
                     
                     // 큰 폭발 효과
                     explosions.push(new Explosion(
@@ -2933,11 +3109,7 @@ function checkEnemyCollisions(enemy) {
                     }
                     
                     // 보스 파괴 시 폭발음 재생
-                    applyGlobalVolume();
-                    explosionSound.currentTime = 0;
-                    explosionSound.play().catch(error => {
-                        console.log('오디오 재생 실패:', error);
-                    });
+                    gameSoundManager.play('explosion', { volume: 0.7 });
                     
                     bossActive = false;
                     return false;
@@ -2955,12 +3127,7 @@ function checkEnemyCollisions(enemy) {
                 updateScore(20); //적 처치 시 획득 점수
             }
             
-            // 적을 맞췄을 때 효과음 재생
-            applyGlobalVolume();
-            shootSound.currentTime = 0;
-            shootSound.play().catch(error => {
-                console.log('오디오 재생 실패:', error);
-            });
+            gameSoundManager.play('shoot', { volume: 0.4 });
             
             isHit = true;
             return false;
@@ -3109,11 +3276,7 @@ function handleSpecialWeapon() {
         specialWeaponCharged = specialWeaponCount > 0;
         
         // 특수 무기 발사 효과음
-        applyGlobalVolume();
-        shootSound.currentTime = 0;
-        shootSound.play().catch(error => {
-            console.log('오디오 재생 실패:', error);
-        });
+        gameSoundManager.play('shoot', { volume: 0.4 });
         
         // F키 상태 초기화
         keys.KeyB = false;
@@ -3299,6 +3462,10 @@ window.addEventListener('load', async () => {
             throw new Error('Canvas 또는 Context를 찾을 수 없습니다.');
         }
         console.log('Canvas 초기화 확인됨');
+        
+        // 사운드 매니저 초기화
+        await gameSoundManager.initialize();
+        console.log('사운드 매니저 초기화 완료');
         
         // 시작 화면 초기화
         initStartScreen();
@@ -3503,11 +3670,7 @@ function handleGameOver() {
         gameOverStartTime = Date.now();
         
         // 플레이어 파괴 폭발 효과음 재생
-        const explosionSound = new Audio('sounds/explosion.mp3');
-        explosionSound.volume = 0.8;
-        explosionSound.play().catch(error => {
-            console.log('플레이어 폭발 효과음 재생 실패:', error);
-        });
+        gameSoundManager.play('explosion', { volume: 0.8 });
         
         // 최고 점수 저장
         const finalScore = Math.max(score, highScore);
@@ -3665,11 +3828,7 @@ function handleBullets() {
                 // 폭탄 폭발
                 explosions.push(new Explosion(bomb.x, bomb.y, true));
                 // 폭발음 재생
-                applyGlobalVolume();
-                shootSound.currentTime = 0;
-                shootSound.play().catch(error => {
-                    console.log('오디오 재생 실패:', error);
-                });
+                gameSoundManager.play('explosion', { volume: 0.6 });
                 return false;
             }
             return true;
@@ -3681,11 +3840,7 @@ function handleBullets() {
                 // 다이나마이트 폭발
                 explosions.push(new Explosion(dynamite.x, dynamite.y, true));
                 // 폭발음 재생
-                applyGlobalVolume();
-                shootSound.currentTime = 0;
-                shootSound.play().catch(error => {
-                    console.log('오디오 재생 실패:', error);
-                });
+                gameSoundManager.play('explosion', { volume: 0.6 });
                 return false;
             }
             return true;
@@ -3701,15 +3856,15 @@ function handleBullets() {
 const BOSS_SETTINGS = {
     HEALTH: 1000,        // 기본 체력
     DAMAGE: 50,          // 보스 총알 데미지
-    SPEED: 2,           // 보스 이동 속도
-    BULLET_SPEED: 5,    // 보스 총알 속도 (원상복구)
+    SPEED: 1,           // 보스 이동 속도 (1.5에서 1로 더 감소)
+    BULLET_SPEED: 3,    // 보스 총알 속도 (4에서 3으로 더 감소)
     PATTERN_INTERVAL: 2000, // 패턴 변경 간격
     SPAWN_INTERVAL: 10000,  // 보스 출현 간격 (10초)
     BONUS_SCORE: 500,    // 보스 처치 보너스 점수를 500으로 설정
     PHASE_THRESHOLDS: [  // 페이즈 전환 체력 임계값
-        { health: 750, speed: 2.5, bulletSpeed: 6 }, // 원상복구
-        { health: 500, speed: 3, bulletSpeed: 7 },   // 원상복구
-        { health: 250, speed: 3.5, bulletSpeed: 8 }   // 원상복구
+        { health: 750, speed: 1.5, bulletSpeed: 4 }, // 속도 더 감소
+        { health: 500, speed: 2, bulletSpeed: 5 },   // 속도 더 감소
+        { health: 250, speed: 2.5, bulletSpeed: 6 }   // 속도 더 감소
     ]
 };
 
@@ -3870,11 +4025,7 @@ function handleBossPattern(boss) {
         updateScore(BOSS_SETTINGS.BONUS_SCORE);
         
         // 보스 파괴 폭발 효과음 재생
-        const explosionSound = new Audio('sounds/explosion.mp3');
-        explosionSound.volume = 0.7;
-        explosionSound.play().catch(error => {
-            console.log('폭발 효과음 재생 실패:', error);
-        });
+        gameSoundManager.play('explosion', { volume: 0.7 });
         
         // 레벨 1~5에서 패턴 사용 기록
         if (gameLevel <= 5 && boss.singlePattern) {
@@ -3886,6 +4037,9 @@ function handleBossPattern(boss) {
         
         // 보스 파괴 시 목숨 1개 추가
         maxLives++; // 최대 목숨 증가
+        
+        // 보스 파괴 시간 기록 (다음 보스 생성까지의 쿨다운 적용)
+        lastBossSpawnTime = Date.now();
         
         // 큰 폭발 효과
         explosions.push(new Explosion(
@@ -3904,11 +4058,7 @@ function handleBossPattern(boss) {
             ));
         }
         // 보스 파괴 시 폭발음 재생
-        applyGlobalVolume();
-        explosionSound.currentTime = 0;
-        explosionSound.play().catch(error => {
-            console.log('오디오 재생 실패:', error);
-        });
+        gameSoundManager.play('explosion', { volume: 0.7 });
         
         return;
     }
@@ -4404,7 +4554,7 @@ function checkLevelUp() {
     if (levelScore >= levelUpScore) {
         gameLevel++;
         levelScore = 0;
-        levelUpScore = 1000 * gameLevel; // 레벨이 올라갈수록 다음 레벨까지 필요한 점수 증가
+        levelUpScore = gameLevel === 1 ? 3000 : 1000 * gameLevel; // 레벨1->2는 3000점, 나머지는 기존 방식
         
         // 현재 난이도 설정 가져오기
         const currentDifficulty = difficultySettings[Math.min(gameLevel, 5)] || {
@@ -4610,9 +4760,9 @@ let fireRateMultiplier = 1;
 let lastFireTime = 0;  // 마지막 발사 시간
 let isSpacePressed = false;  // 스페이스바 누름 상태
 let spacePressTime = 0;  // 스페이스바를 처음 누른 시간
-let fireDelay = 600;  // 기본 발사 딜레이 (끊어서 발사할 때 - 더 느리게)
-let continuousFireDelay = 50;  // 연속 발사 딜레이 (빠르게)
-let bulletSpeed = 12;  // 총알 속도
+let fireDelay = 500;  // 기본 발사 딜레이 (800에서 500으로 감소 - 더 빠른 연속 발사 전환)
+let continuousFireDelay = 50;  // 연속 발사 딜레이 (25에서 50으로 증가 - 시각적 흐름 개선)
+let bulletSpeed = 7;  // 총알 속도 (10에서 7로 더 감소 - 30% 추가 감소)
 let baseBulletSize = 4.5;  // 기본 총알 크기 (1.5배 증가)
 let isContinuousFire = false;  // 연속 발사 상태
 let canFire = true;  // 발사 가능 상태 추가
@@ -4929,9 +5079,7 @@ const SNAKE_EXPLOSION_VOLUME_MULTIPLIER = 1.5; // 뱀패턴 효과음 볼륨 배
 
 function applyGlobalVolume() {
     const vol = isMuted ? 0 : Math.min(1, Math.max(0, globalVolume));
-    shootSound.volume = vol;
-    explosionSound.volume = vol;
-    collisionSound.volume = vol;
+    gameSoundManager.setVolume(vol);
     
     // 경고음이 존재할 때만 볼륨 설정
     if (warningSound) {
@@ -4952,17 +5100,13 @@ function playExplosionSound(isSnakePattern = false) {
         const decayedVolume = globalVolume * Math.pow(VOLUME_DECAY, 
             Math.floor((currentTime - lastExplosionTime) / EXPLOSION_COOLDOWN));
         const finalVolume = isMuted ? 0 : Math.min(1, Math.max(0, decayedVolume * volumeMultiplier));
-        explosionSound.volume = finalVolume;
+        gameSoundManager.play('explosion', { volume: finalVolume });
     } else {
         // 일반 재생
         const finalVolume = isMuted ? 0 : Math.min(1, Math.max(0, globalVolume * volumeMultiplier));
-        explosionSound.volume = finalVolume;
+        gameSoundManager.play('explosion', { volume: finalVolume });
     }
     
-    explosionSound.currentTime = 0;
-    explosionSound.play().catch(error => {
-        console.log('오디오 재생 실패:', error);
-    });
     lastExplosionTime = currentTime;
 }
 
@@ -5106,9 +5250,9 @@ async function initializeGame() {
         lastFireTime = 0;
         isSpacePressed = false;
         spacePressTime = 0;
-        fireDelay = 600;
-        continuousFireDelay = 50;
-        bulletSpeed = 12;
+        fireDelay = 500;  // 800에서 500으로 감소 - 더 빠른 연속 발사 전환
+        continuousFireDelay = 50;  // 25에서 50으로 증가 - 시각적 흐름 개선
+        bulletSpeed = 7;  // 10에서 7로 더 감소
         baseBulletSize = 4.5;
         isContinuousFire = false;
         canFire = true;
@@ -5206,7 +5350,7 @@ function restartGame() {
     score = 0;
     levelScore = 0;
     gameLevel = 1;
-    levelUpScore = 1000;
+    levelUpScore = 3000; // 레벨1->2는 3000점
     
     // 6. 특수무기 관련 상태 초기화
     specialWeaponCharged = false;
@@ -5235,9 +5379,9 @@ function restartGame() {
     lastFireTime = 0;
     isSpacePressed = false;
     spacePressTime = 0;
-    fireDelay = 600;
-    continuousFireDelay = 50;
-    bulletSpeed = 12;
+    fireDelay = 500;  // 800에서 500으로 감소 - 더 빠른 연속 발사 전환
+    continuousFireDelay = 50;  // 25에서 50으로 증가 - 시각적 흐름 개선
+    bulletSpeed = 7;  // 12에서 7로 수정
     baseBulletSize = 4.5;
     isContinuousFire = false;
     canFire = true;
