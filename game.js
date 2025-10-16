@@ -2204,8 +2204,8 @@ function checkCollision(rect1, rect2) {
 function handleCollision() {
     if (hasShield) {
         hasShield = false;
-        // 보호막 피격 시 충돌 효과음 재생
-        gameSoundManager.play('collision', { volume: 0.5 });
+        // 보호막 피격 시 shoot 효과음 재생
+        gameSoundManager.play('shoot', { volume: 0.4 });
         return;
     }
     
@@ -3065,8 +3065,8 @@ function checkEnemyCollisions(enemy) {
                 enemy.health -= 100;
                 bossHealth = enemy.health;
                 
-                // 보스 피격 시 충돌 효과음 재생
-                gameSoundManager.play('collision', { volume: 0.5 });
+                // 보스 피격 시 shoot 효과음 재생
+                gameSoundManager.play('shoot', { volume: 0.4 });
                 
                 // 피격 시간이 전체 출현 시간의 50%를 넘으면 파괴
                 const totalTime = currentTime - enemy.lastUpdateTime;
