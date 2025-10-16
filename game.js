@@ -25,7 +25,7 @@ resizeCanvas();
 class GameSoundManager {
     constructor() {
         this.sounds = {};
-        this.volume = 0.5;
+        this.volume = 1.0;
         this.enabled = true;
         this.audioContext = null;
         this.gainNode = null;
@@ -3483,8 +3483,8 @@ window.addEventListener('load', async () => {
         const muteBtn = document.getElementById('muteBtn');
 
         // 초기화: 슬라이더, %표시, 버튼
-        effectVolume.value = globalVolume;
-        volumeValue.textContent = Math.round(globalVolume * 100) + '%';
+        effectVolume.value = 0.1; // 슬라이더바는 10%로 표시
+        volumeValue.textContent = '10%';
         muteBtn.textContent = isMuted ? '🔇 전체 음소거' : '🔊 전체 음소거';
         applyGlobalVolume();
 
@@ -3518,10 +3518,10 @@ window.addEventListener('load', async () => {
             } else {
                 isMuted = false;
                 if (globalVolume === 0) globalVolume = 0.5;
-                effectVolume.value = globalVolume;
+                effectVolume.value = 0.1; // 슬라이더바는 10%로 표시
                 applyGlobalVolume();
                 muteBtn.textContent = '🔊 전체 음소거';
-                volumeValue.textContent = Math.round(globalVolume * 100) + '%';
+                volumeValue.textContent = '10%';
             }
             setTimeout(() => { document.getElementById('gameCanvas').focus(); }, 0);
         });
@@ -5070,7 +5070,7 @@ function handleDynamites() {
 let maxLives = 5;  // 최대 목숨 수
 
 // === 사운드 볼륨 전역 변수 및 함수 추가 ===
-let globalVolume = 0.1;
+let globalVolume = 0.5;
 let isMuted = false;
 let lastExplosionTime = 0;
 const EXPLOSION_COOLDOWN = 100; // 효과음 재생 간격 (밀리초)
