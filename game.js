@@ -3066,7 +3066,7 @@ function checkEnemyCollisions(enemy) {
                 bossHealth = enemy.health;
                 
                 // 보스 피격 시 shoot 효과음 재생
-                gameSoundManager.play('shoot', { volume: 0.4 });
+                gameSoundManager.play('shoot', { volume: 0.8 });
                 
                 // 피격 시간이 전체 출현 시간의 50%를 넘으면 파괴
                 const totalTime = currentTime - enemy.lastUpdateTime;
