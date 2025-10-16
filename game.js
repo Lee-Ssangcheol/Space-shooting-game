@@ -2204,6 +2204,8 @@ function checkCollision(rect1, rect2) {
 function handleCollision() {
     if (hasShield) {
         hasShield = false;
+        // 보호막 피격 시 충돌 효과음 재생
+        gameSoundManager.play('collision', { volume: 0.5 });
         return;
     }
     
@@ -2268,9 +2270,9 @@ function handleCollision() {
             if (warningSound && !warningSound.paused) {
                 try { warningSound.pause(); warningSound.currentTime = 0; } catch (e) {}
             }
-            // 충돌음은 충분히 크게 재생 (전역볼륨이 낮아도 최소 0.8 보장)
+            // 충돌 시 경고음만 재생 (폭발음과 혼동 방지)
             const baseVol = isMuted ? 0 : Math.min(1, Math.max(0, globalVolume));
-            gameSoundManager.play('collision', { volume: 0.5 });
+            playWarningSound();
         } catch (e) {}
     }
 }
@@ -3018,7 +3020,7 @@ function checkEnemyCollisions(enemy) {
                     // 보스 파괴 시간 기록 (다음 보스 생성까지의 쿨다운 적용)
                     lastBossSpawnTime = Date.now();
                     
-                    gameSoundManager.play('explosion', { volume: 0.7 });
+                    // 폭발음은 한 번만 재생 (중복 제거)
                     
                     // 큰 폭발 효과
                     explosions.push(new Explosion(
@@ -3063,7 +3065,7 @@ function checkEnemyCollisions(enemy) {
                 enemy.health -= 100;
                 bossHealth = enemy.health;
                 
-                // 보스 피격음 재생
+                // 보스 피격 시 충돌 효과음 재생
                 gameSoundManager.play('collision', { volume: 0.5 });
                 
                 // 피격 시간이 전체 출현 시간의 50%를 넘으면 파괴
@@ -3088,6 +3090,7 @@ function checkEnemyCollisions(enemy) {
                     // 보스 파괴 시간 기록 (다음 보스 생성까지의 쿨다운 적용)
                     lastBossSpawnTime = Date.now();
                     
+                    // 폭발음은 한 번만 재생 (중복 제거)
                     gameSoundManager.play('explosion', { volume: 0.7 });
                     
                     // 큰 폭발 효과
@@ -3107,9 +3110,6 @@ function checkEnemyCollisions(enemy) {
                             false
                         ));
                     }
-                    
-                    // 보스 파괴 시 폭발음 재생
-                    gameSoundManager.play('explosion', { volume: 0.7 });
                     
                     bossActive = false;
                     return false;
@@ -3275,8 +3275,7 @@ function handleSpecialWeapon() {
         specialWeaponCount--;  // 특수무기 개수 감소
         specialWeaponCharged = specialWeaponCount > 0;
         
-        // 특수 무기 발사 효과음
-        gameSoundManager.play('shoot', { volume: 0.4 });
+        // 특수 무기 발사 효과음 제거 (피격 시에만 shoot 효과음 재생)
         
         // F키 상태 초기화
         keys.KeyB = false;
@@ -3827,8 +3826,7 @@ function handleBullets() {
             if (checkCollision(bullet, bomb)) {
                 // 폭탄 폭발
                 explosions.push(new Explosion(bomb.x, bomb.y, true));
-                // 폭발음 재생
-                gameSoundManager.play('explosion', { volume: 0.6 });
+                // 폭발음은 플레이어/보스/보호막 비행기 파괴 시에만 재생
                 return false;
             }
             return true;
@@ -3839,8 +3837,7 @@ function handleBullets() {
             if (checkCollision(bullet, dynamite)) {
                 // 다이나마이트 폭발
                 explosions.push(new Explosion(dynamite.x, dynamite.y, true));
-                // 폭발음 재생
-                gameSoundManager.play('explosion', { volume: 0.6 });
+                // 폭발음은 플레이어/보스/보호막 비행기 파괴 시에만 재생
                 return false;
             }
             return true;
@@ -4057,8 +4054,7 @@ function handleBossPattern(boss) {
                 false
             ));
         }
-        // 보스 파괴 시 폭발음 재생
-        gameSoundManager.play('explosion', { volume: 0.7 });
+        // 폭발음은 이미 위에서 재생됨 (중복 제거)
         
         return;
     }
@@ -4993,6 +4989,7 @@ function handleDynamites() {
             if (dynamite.fuseTimer >= dynamite.fuseLength) {
                 // 도화선이 다 타면 폭발
                 explosions.push(new Explosion(dynamite.x, dynamite.y, true));
+                // 폭발음은 플레이어/보스/보호막 비행기 파괴 시에만 재생
                 return false;
             }
         }
@@ -5085,29 +5082,6 @@ function applyGlobalVolume() {
     if (warningSound) {
         warningSound.volume = vol;
     }
-}
-
-function playExplosionSound(isSnakePattern = false) {
-    const currentTime = Date.now();
-    let volumeMultiplier = 2.0; //플레이어 폭발음 볼윰 증가
-    
-    if (isSnakePattern) {
-        volumeMultiplier = SNAKE_EXPLOSION_VOLUME_MULTIPLIER;
-    }
-    
-    if (currentTime - lastExplosionTime < EXPLOSION_COOLDOWN) {
-        // 연속 재생 시 볼륨 감소
-        const decayedVolume = globalVolume * Math.pow(VOLUME_DECAY, 
-            Math.floor((currentTime - lastExplosionTime) / EXPLOSION_COOLDOWN));
-        const finalVolume = isMuted ? 0 : Math.min(1, Math.max(0, decayedVolume * volumeMultiplier));
-        gameSoundManager.play('explosion', { volume: finalVolume });
-    } else {
-        // 일반 재생
-        const finalVolume = isMuted ? 0 : Math.min(1, Math.max(0, globalVolume * volumeMultiplier));
-        gameSoundManager.play('explosion', { volume: finalVolume });
-    }
-    
-    lastExplosionTime = currentTime;
 }
 
 // 게임 상태 변수 추가
