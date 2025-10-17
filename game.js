@@ -2240,7 +2240,7 @@ function handleCollision() {
     if (hasShield) {
         hasShield = false;
         // 보호막 피격 시 shoot 효과음 재생
-        gameSoundManager.play('shoot', { volume: 0.4 }); // 보호막 피격 효과음
+        gameSoundManager.play('shoot', { volume: 0.6 }); // 보호막 피격 효과음
         return;
     }
     
@@ -2990,7 +2990,7 @@ function handleSnakePattern() {
                         ));
                         updateScore(20); //뱀 패턴 비행기 한 대당 획득 점수
                         // 뱀패턴 효과음 재생
-                        gameSoundManager.play('shoot', { volume: 0.4 }); // 뱀패턴 효과음
+                        gameSoundManager.play('shoot', { volume: 0.6 }); // 뱀패턴 효과음
                         enemy.isHit = true;
                         return false;
                     }
@@ -3164,7 +3164,7 @@ function checkEnemyCollisions(enemy) {
                 updateScore(20); //적 처치 시 획득 점수
             }
             
-            gameSoundManager.play('shoot', { volume: 0.4 }); // 일반 적 처치 효과음
+            gameSoundManager.play('shoot', { volume: 0.6 }); // 일반 적 처치 효과음
             
             isHit = true;
             return false;
