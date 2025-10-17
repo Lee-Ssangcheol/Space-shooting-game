@@ -116,12 +116,24 @@ class GameSoundManager {
             return;
         }
 
-        const volume = options.volume !== undefined ? options.volume : this.volume;
+        // 개별 볼륨과 전역 볼륨을 곱셈으로 결합
+        const individualVolume = options.volume !== undefined ? options.volume : 1.0;
+        const globalVolume = this.volume;
+        const finalVolume = individualVolume * globalVolume;
+        
+        // 디버깅: 볼륨 계산 과정 로그 (10% 확률로만 출력)
+        if (Math.random() < 0.1) {
+            console.log(`사운드 볼륨 계산 - ${soundName}:`, {
+                individualVolume: individualVolume,
+                globalVolume: globalVolume,
+                finalVolume: finalVolume
+            });
+        }
         
         if (this.useWebAudio && this.sounds[soundName] instanceof AudioBuffer) {
-            await this.playWithWebAudioAPI(soundName, volume);
+            await this.playWithWebAudioAPI(soundName, finalVolume);
         } else {
-            await this.playWithHTML5Audio(soundName, volume);
+            await this.playWithHTML5Audio(soundName, finalVolume);
         }
     }
 
@@ -2228,7 +2240,7 @@ function handleCollision() {
     if (hasShield) {
         hasShield = false;
         // 보호막 피격 시 shoot 효과음 재생
-        gameSoundManager.play('shoot');
+        gameSoundManager.play('shoot', { volume: 0.4 }); // 보호막 피격 효과음
         return;
     }
     
@@ -2978,7 +2990,7 @@ function handleSnakePattern() {
                         ));
                         updateScore(20); //뱀 패턴 비행기 한 대당 획득 점수
                         // 뱀패턴 효과음 재생
-                        gameSoundManager.play('shoot');
+                        gameSoundManager.play('shoot', { volume: 0.4 }); // 뱀패턴 효과음
                         enemy.isHit = true;
                         return false;
                     }
@@ -3091,7 +3103,7 @@ function checkEnemyCollisions(enemy) {
                 bossHealth = enemy.health;
                 
                 // 보스 피격 시 shoot 효과음 재생
-                gameSoundManager.play('shoot');
+                gameSoundManager.play('shoot', { volume: 0.8 }); // 보스 피격 효과음
                 
                 // 피격 시간이 전체 출현 시간의 50%를 넘으면 파괴
                 const totalTime = currentTime - enemy.lastUpdateTime;
@@ -3116,7 +3128,7 @@ function checkEnemyCollisions(enemy) {
                     lastBossSpawnTime = Date.now() - 6000; // 6초 전으로 설정하여 즉시 보스 생성 가능
                     
                     // 폭발음은 한 번만 재생 (중복 제거)
-                    gameSoundManager.play('explosion');
+                    gameSoundManager.play('explosion', { volume: 1.0 }); // 보스 파괴 폭발음
                     
                     // 큰 폭발 효과
                     explosions.push(new Explosion(
@@ -3152,7 +3164,7 @@ function checkEnemyCollisions(enemy) {
                 updateScore(20); //적 처치 시 획득 점수
             }
             
-            gameSoundManager.play('shoot');
+            gameSoundManager.play('shoot', { volume: 0.4 }); // 일반 적 처치 효과음
             
             isHit = true;
             return false;
@@ -3506,8 +3518,8 @@ window.addEventListener('load', async () => {
         const volumeValue = document.getElementById('volume-value');
 
         // 초기화: 슬라이더, %표시
-        effectVolume.value = 10; // 슬라이더바는 10%로 표시 (0-100 범위)
-        volumeValue.textContent = '10%';
+        effectVolume.value = 50; // 슬라이더바는 50%로 표시 (0-100 범위)
+        volumeValue.textContent = '50%';
         applyGlobalVolume();
 
         // 슬라이더 조작 시
@@ -3671,7 +3683,7 @@ function handleGameOver() {
         gameOverStartTime = Date.now();
         
         // 플레이어 파괴 폭발 효과음 재생
-        gameSoundManager.play('explosion');
+        gameSoundManager.play('explosion', { volume: 1.0 }); // 플레이어 파괴 폭발음
         
         // 최고 점수 저장
         const finalScore = Math.max(score, highScore);
@@ -4029,7 +4041,7 @@ function handleBossPattern(boss) {
         updateScore(BOSS_SETTINGS.BONUS_SCORE);
         
         // 보스 파괴 폭발 효과음 재생
-        gameSoundManager.play('explosion');
+        gameSoundManager.play('explosion', { volume: 1.0 }); // 보스 파괴 폭발음
         
         // 레벨 1~5에서 패턴 사용 기록
         if (gameLevel <= 5 && boss.singlePattern) {
@@ -5200,8 +5212,8 @@ function createSoundControlPanel() {
     volumeControl.style.width = '100%';
     volumeControl.innerHTML = `
         <label style="white-space: nowrap;">효과음 볼륨:</label>
-        <input type="range" min="0" max="100" value="10" id="sfx-volume" style="flex: 1; min-width: 120px; max-width: 200px; cursor: pointer; pointer-events: auto;"> 
-        <span id="volume-value" style="min-width: 40px; text-align:right;">10%</span>
+        <input type="range" min="0" max="100" value="50" id="sfx-volume" style="flex: 1; min-width: 120px; max-width: 200px; cursor: pointer; pointer-events: auto;"> 
+        <span id="volume-value" style="min-width: 40px; text-align:right;">50%</span>
     `;
     panel.appendChild(volumeControl);
 
@@ -5221,10 +5233,10 @@ function setupSoundControlEvents() {
     const volumeValue = document.getElementById('volume-value');
     
     if (sfxVolumeSlider && volumeValue) {
-        const initialVolume = 10;
+        const initialVolume = 50;
         sfxVolumeSlider.value = initialVolume;
         volumeValue.textContent = `${initialVolume}%`;
-        gameSoundManager.setVolume(0.1);
+        gameSoundManager.setVolume(0.5);
         
         // 슬라이더 이벤트 리스너 추가
         sfxVolumeSlider.addEventListener('input', function(e) {
