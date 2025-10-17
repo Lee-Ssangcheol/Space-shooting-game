@@ -389,6 +389,7 @@ function resetPatternUsage() {
 let bossActive = false;
 let bossHealth = 0;
 let bossPattern = 0;
+let bossTimer = 0;
 let specialWeaponCharged = false;
 let specialWeaponCharge = 0;
 let specialWeaponCount = 0;  // 특수무기 개수
@@ -1608,15 +1609,18 @@ async function initializeGame() {
         bossHealth = 0;
         bossDestroyed = false;
         bossPattern = 0;
+        bossTimer = 0;
         lastBossSpawnTime = Date.now() - 6000; // 6초 전으로 설정하여 즉시 보스 생성 가능
         
 
         
-        // 6. 플레이어 초기 위치 설정
+        // 6. 플레이어 초기 위치 및 속도 설정
         player.x = canvas.width / 2;
         player.y = canvas.height - 80;
+        player.speed = 6;  // 플레이어 속도 초기화
         secondPlane.x = canvas.width / 2 - 60;
         secondPlane.y = canvas.height - 80;
+        secondPlane.speed = 6;  // 두 번째 비행기 속도 초기화
         
         // 7. 게임 타이머 초기화
         lastEnemySpawnTime = 0;
@@ -1718,11 +1722,13 @@ function restartGame() {
     snakeEnemies = [];      // 뱀 패턴 적 배열 초기화
     snakeGroups = [];       // 뱀 패턴 그룹 배열 초기화
     
-    // 3. 플레이어 위치 초기화
+    // 3. 플레이어 위치 및 속도 초기화
     player.x = canvas.width / 2;
     player.y = canvas.height - 80;
+    player.speed = 6;  // 플레이어 속도 초기화
     secondPlane.x = canvas.width / 2 - 60;
     secondPlane.y = canvas.height - 80;
+    secondPlane.speed = 6;  // 두 번째 비행기 속도 초기화
     
     // 4. 게임 타이머 및 상태 초기화
     gameOverStartTime = null;
@@ -1746,6 +1752,7 @@ function restartGame() {
     bossHealth = 0;
     bossDestroyed = false;
     bossPattern = 0;
+    bossTimer = 0;
     
     // 8. 뱀 패턴 상태 초기화
     isSnakePatternActive = false;
@@ -1765,7 +1772,7 @@ function restartGame() {
     spacePressTime = 0;
     fireDelay = 500;  // 800에서 500으로 감소 - 더 빠른 연속 발사 전환
     continuousFireDelay = 50;  // 25에서 50으로 증가 - 시각적 흐름 개선
-    bulletSpeed = 7;  // 12에서 7로 수정
+    bulletSpeed = 8.4;  // 7에서 8.4로 수정 (20% 증가 반영)
     baseBulletSize = 4.5;
     isContinuousFire = false;
     canFire = true;
