@@ -311,7 +311,7 @@ const player = {
     y: canvas.height - 80,
     width: 40,
     height: 40,
-    speed: 4  // 6에서 4로 더 감소 (33% 추가 감소)
+    speed: 6  // 4에서 6으로 증가 (좌우 이동 속도 증가)
 };
 
 // 두 번째 비행기
@@ -320,7 +320,7 @@ const secondPlane = {
     y: canvas.height - 80,
     width: 40,
     height: 40,
-    speed: 4  // 6에서 4로 더 감소 (33% 추가 감소)
+    speed: 6  // 4에서 6으로 증가 (좌우 이동 속도 증가)
 };
 
 // 게임 상태 변수 설정
@@ -354,6 +354,24 @@ let lastSnakeGroupTime = 0;  // 마지막 뱀 그룹 생성 시간
 const snakeGroupInterval = 2500;  // 그룹 생성 간격 (1.5초에서 2.5초로 증가)
 const maxSnakeGroups = 3;  // 최대 동시 그룹 수
 let gameVersion = '1.0.0-202506161826';  // 게임 버전
+
+// 보스 패턴 추적 시스템
+let levelBossPatterns = {
+    usedPatterns: [],
+    patternSequence: [
+        'single_circle', 'single_spiral', 'single_wave', 'single_diamond',
+        'single_cross', 'single_burst', 'single_random'
+    ],
+    currentLevelPattern: null
+};
+
+// 패턴 사용 기록 초기화 함수
+function resetPatternUsage() {
+    levelBossPatterns.usedPatterns = [];
+    levelBossPatterns.currentLevelPattern = null;
+    console.log('패턴 사용 기록 초기화됨');
+    console.log('사용 가능한 패턴들:', levelBossPatterns.patternSequence.map(p => p).join(', '));
+}
 
 // 게임 상태 변수에 추가
 let bossActive = false;
@@ -1043,9 +1061,9 @@ const keys = {
 // 난이도 설정
 const difficultySettings = {
     1: { // 초급
-        enemySpeed: 1,  // 1.5에서 1로 더 감소
+        enemySpeed: 2.4,  // 2에서 2.4로 증가 (20% 증가)
         enemySpawnRate: 0.01,  // 0.015에서 0.01로 더 감소
-        horizontalSpeedRange: 1,  // 1.5에서 1로 더 감소
+        horizontalSpeedRange: 1.2,  // 1에서 1.2로 증가 (20% 증가)
         patternChance: 0.2,
         maxEnemies: 5,
         bossHealth: 1500,
@@ -1055,9 +1073,9 @@ const difficultySettings = {
         dynamiteDropChance: 0.05
     },
     2: { // 중급
-        enemySpeed: 1.5,  // 2.5에서 1.5로 더 감소
+        enemySpeed: 3,  // 2.5에서 3으로 증가 (20% 증가)
         enemySpawnRate: 0.015,  // 0.025에서 0.015로 더 감소
-        horizontalSpeedRange: 1.5,  // 2.5에서 1.5로 더 감소
+        horizontalSpeedRange: 1.8,  // 1.5에서 1.8로 증가 (20% 증가)
         patternChance: 0.4,
         maxEnemies: 8,
         bossHealth: 2000,
@@ -1067,9 +1085,9 @@ const difficultySettings = {
         dynamiteDropChance: 0.1
     },
     3: { // 고급
-        enemySpeed: 2,  // 3.5에서 2로 더 감소
+        enemySpeed: 3.6,  // 3에서 3.6으로 증가 (20% 증가)
         enemySpawnRate: 0.02,  // 0.035에서 0.02로 더 감소
-        horizontalSpeedRange: 2,  // 3.5에서 2로 더 감소
+        horizontalSpeedRange: 2.4,  // 2에서 2.4로 증가 (20% 증가)
         patternChance: 0.6,
         maxEnemies: 12,
         bossHealth: 2500,
@@ -1079,9 +1097,9 @@ const difficultySettings = {
         dynamiteDropChance: 0.15
     },
     4: { // 전문가
-        enemySpeed: 2.5,  // 4.5에서 2.5로 더 감소
+        enemySpeed: 4.2,  // 3.5에서 4.2로 증가 (20% 증가)
         enemySpawnRate: 0.025,  // 0.045에서 0.025로 더 감소
-        horizontalSpeedRange: 2.5,  // 4.5에서 2.5로 더 감소
+        horizontalSpeedRange: 3,  // 2.5에서 3으로 증가 (20% 증가)
         patternChance: 0.8,
         maxEnemies: 15,
         bossHealth: 3000,
@@ -1091,9 +1109,9 @@ const difficultySettings = {
         dynamiteDropChance: 0.2
     },
     5: { // 마스터
-        enemySpeed: 3,  // 5.5에서 3으로 더 감소
+        enemySpeed: 4.8,  // 4에서 4.8로 증가 (20% 증가)
         enemySpawnRate: 0.03,  // 0.055에서 0.03으로 더 감소
-        horizontalSpeedRange: 3,  // 5.5에서 3으로 더 감소
+        horizontalSpeedRange: 3.6,  // 3에서 3.6으로 증가 (20% 증가)
         patternChance: 1.0,
         maxEnemies: 20,
         bossHealth: 3500,
@@ -1578,7 +1596,7 @@ async function initializeGame() {
         bossHealth = 0;
         bossDestroyed = false;
         bossPattern = 0;
-        lastBossSpawnTime = Date.now();
+        lastBossSpawnTime = Date.now() - 6000; // 6초 전으로 설정하여 즉시 보스 생성 가능
         
 
         
@@ -1603,7 +1621,7 @@ async function initializeGame() {
         spacePressTime = 0;
         fireDelay = 500;  // 800에서 500으로 감소 - 더 빠른 연속 발사 전환
         continuousFireDelay = 50;  // 25에서 50으로 증가 - 시각적 흐름 개선
-        bulletSpeed = 7;  // 10에서 7로 더 감소
+        bulletSpeed = 8.4;  // 7에서 8.4로 증가 (20% 증가)
         baseBulletSize = 4.5;
         isContinuousFire = false;
         canFire = true;
@@ -1698,7 +1716,7 @@ function restartGame() {
     gameOverStartTime = null;
     flashTimer = 0;
     lastEnemySpawnTime = 0;
-    lastBossSpawnTime = Date.now();
+    lastBossSpawnTime = Date.now() - 6000; // 6초 전으로 설정하여 즉시 보스 생성 가능
     
     // 5. 점수 및 레벨 초기화
     score = 0;
@@ -1791,9 +1809,9 @@ function restartGame() {
 // 적 생성 함수 수정
 function createEnemy() {
     const currentDifficulty = difficultySettings[Math.min(gameLevel, 5)] || {
-        enemySpeed: 6 + (gameLevel - 5) * 0.5,
+        enemySpeed: 7.2 + (gameLevel - 5) * 0.6,  // 6에서 7.2로 증가 (20% 증가)
         enemySpawnRate: 0.06 + (gameLevel - 5) * 0.01,
-        horizontalSpeedRange: 6 + (gameLevel - 5) * 0.5,
+        horizontalSpeedRange: 7.2 + (gameLevel - 5) * 0.6,  // 6에서 7.2로 증가 (20% 증가)
         patternChance: 1.0,
         maxEnemies: 20 + (gameLevel - 5) * 2,
         bossHealth: 1000 + (gameLevel - 5) * 250,  // 2000 → 1000, 500 → 250
@@ -1802,6 +1820,11 @@ function createEnemy() {
         bombDropChance: 0.3,
         dynamiteDropChance: 0.25
     };
+    
+    // 디버깅: 레벨과 난이도 확인 (로그 빈도 더 줄임)
+    if (Math.random() < 0.001) { // 0.1% 확률로 로그 출력
+        console.log(`적 생성 - 레벨: ${gameLevel}, 적 속도: ${currentDifficulty.enemySpeed}`);
+    }
     
     // 뱀 패턴 시작 확률 (난이도에 따라 증가) - 확률 증가
     if (!isSnakePatternActive && Math.random() < currentDifficulty.patternChance * 0.8) {
@@ -2109,7 +2132,7 @@ function startSnakePattern() {
         patternType: getRandomPatternType(),
         direction: Math.random() < 0.5 ? 1 : -1,
         angle: 0,
-        speed: 3 + Math.random() * 3, // 더 빠른 속도 (2-5에서 3-6으로)
+        speed: 3.6 + Math.random() * 3.6, // 더 빠른 속도 (3-6에서 3.6-7.2로, 20% 증가)
         amplitude: Math.random() * 100 + 150,
         frequency: Math.random() * 0.5 + 0.75,
         spiralRadius: 50,
@@ -2205,7 +2228,7 @@ function handleCollision() {
     if (hasShield) {
         hasShield = false;
         // 보호막 피격 시 shoot 효과음 재생
-        gameSoundManager.play('shoot', { volume: 0.4 });
+        gameSoundManager.play('shoot');
         return;
     }
     
@@ -2284,7 +2307,7 @@ class Explosion {
         this.y = y;
         this.radius = 1;
         this.maxRadius = isFinal ? 100 : 50; // 최종 폭발은 더 크게
-        this.speed = isFinal ? 1 : 1.5;
+        this.speed = isFinal ? 1.2 : 1.8;  // 속도 20% 증가
         this.particles = [];
         this.isFinal = isFinal;
         
@@ -2622,12 +2645,15 @@ function gameLoop() {
                 });
                 createBoss();
             } else {
-                console.log('보스 생성 조건 불만족:', {
-                    gameLevel,
-                    timeSinceLastBoss,
-                    requiredInterval: BOSS_SETTINGS.SPAWN_INTERVAL,
-                    bossActive
-                });
+                // 로그 빈도 줄임 (1% 확률로만 출력)
+                if (Math.random() < 0.01) {
+                    console.log('보스 생성 조건 불만족:', {
+                        gameLevel,
+                        timeSinceLastBoss,
+                        requiredInterval: BOSS_SETTINGS.SPAWN_INTERVAL,
+                        bossActive
+                    });
+                }
             }
         } else {
             // 보스가 존재하는 경우 보스 패턴 처리
@@ -2676,15 +2702,15 @@ function gameLoop() {
 // 플레이어 이동 처리 함수
 function handlePlayerMovement() {
     if (keys.ArrowLeft && player.x > 0) {
-        player.x -= player.speed * 0.5;
+        player.x -= player.speed * 0.8;  // 0.5에서 0.8로 증가 (좌우 이동 속도 증가)
         if (hasSecondPlane) {
-            secondPlane.x -= player.speed * 0.5;
+            secondPlane.x -= player.speed * 0.8;  // 0.5에서 0.8로 증가
         }
     }
     if (keys.ArrowRight && player.x < canvas.width - player.width) {
-        player.x += player.speed * 0.5;
+        player.x += player.speed * 0.8;  // 0.5에서 0.8로 증가 (좌우 이동 속도 증가)
         if (hasSecondPlane) {
-            secondPlane.x += player.speed * 0.5;
+            secondPlane.x += player.speed * 0.8;  // 0.5에서 0.8로 증가
         }
     }
     if (keys.ArrowUp && player.y > 0) {
@@ -2705,9 +2731,9 @@ function handlePlayerMovement() {
 function handleEnemies() {
     const currentTime = Date.now();
     const currentDifficulty = difficultySettings[Math.min(gameLevel, 5)] || {
-        enemySpeed: 6 + (gameLevel - 5) * 0.5,
+        enemySpeed: 7.2 + (gameLevel - 5) * 0.6,  // 6에서 7.2로 증가 (20% 증가)
         enemySpawnRate: 0.06 + (gameLevel - 5) * 0.01,
-        horizontalSpeedRange: 6 + (gameLevel - 5) * 0.5,
+        horizontalSpeedRange: 7.2 + (gameLevel - 5) * 0.6,  // 6에서 7.2로 증가 (20% 증가)
         patternChance: 1.0,
         maxEnemies: 20 + (gameLevel - 5) * 2,
         bossHealth: 1000 + (gameLevel - 5) * 250,  // 2000 → 1000, 500 → 250
@@ -2952,8 +2978,7 @@ function handleSnakePattern() {
                         ));
                         updateScore(20); //뱀 패턴 비행기 한 대당 획득 점수
                         // 뱀패턴 효과음 재생
-                        applyGlobalVolume();
-                        gameSoundManager.play('shoot', { volume: 0.4 });
+                        gameSoundManager.play('shoot');
                         enemy.isHit = true;
                         return false;
                     }
@@ -3018,7 +3043,7 @@ function checkEnemyCollisions(enemy) {
                     maxLives++; // 최대 목숨 증가
                     
                     // 보스 파괴 시간 기록 (다음 보스 생성까지의 쿨다운 적용)
-                    lastBossSpawnTime = Date.now();
+                    lastBossSpawnTime = Date.now() - 6000; // 6초 전으로 설정하여 즉시 보스 생성 가능
                     
                     // 폭발음은 한 번만 재생 (중복 제거)
                     
@@ -3066,7 +3091,7 @@ function checkEnemyCollisions(enemy) {
                 bossHealth = enemy.health;
                 
                 // 보스 피격 시 shoot 효과음 재생
-                gameSoundManager.play('shoot', { volume: 0.8 });
+                gameSoundManager.play('shoot');
                 
                 // 피격 시간이 전체 출현 시간의 50%를 넘으면 파괴
                 const totalTime = currentTime - enemy.lastUpdateTime;
@@ -3088,10 +3113,10 @@ function checkEnemyCollisions(enemy) {
                     }
                     
                     // 보스 파괴 시간 기록 (다음 보스 생성까지의 쿨다운 적용)
-                    lastBossSpawnTime = Date.now();
+                    lastBossSpawnTime = Date.now() - 6000; // 6초 전으로 설정하여 즉시 보스 생성 가능
                     
                     // 폭발음은 한 번만 재생 (중복 제거)
-                    gameSoundManager.play('explosion', { volume: 0.7 });
+                    gameSoundManager.play('explosion');
                     
                     // 큰 폭발 효과
                     explosions.push(new Explosion(
@@ -3127,7 +3152,7 @@ function checkEnemyCollisions(enemy) {
                 updateScore(20); //적 처치 시 획득 점수
             }
             
-            gameSoundManager.play('shoot', { volume: 0.4 });
+            gameSoundManager.play('shoot');
             
             isHit = true;
             return false;
@@ -3244,7 +3269,7 @@ function handleSpecialWeapon() {
                 y: player.y,
                 width: 12,  // 총알 크기 증가
                 height: 12, // 총알 크기 증가
-                speed: 12,  // 속도 증가
+                speed: 14.4,  // 12에서 14.4로 증가 (20% 증가)
                 angle: angle,
                 isSpecial: true,
                 life: 100,  // 총알 지속 시간 추가
@@ -3477,23 +3502,20 @@ window.addEventListener('load', async () => {
         // 게임 초기화 실행
         await initializeGame();
 
-        const effectVolume = document.getElementById('effectVolume');
-        const volumeValue = document.getElementById('volumeValue');
-        const muteBtn = document.getElementById('muteBtn');
+        const effectVolume = document.getElementById('sfx-volume');
+        const volumeValue = document.getElementById('volume-value');
 
-        // 초기화: 슬라이더, %표시, 버튼
-        effectVolume.value = 0.1; // 슬라이더바는 10%로 표시
+        // 초기화: 슬라이더, %표시
+        effectVolume.value = 10; // 슬라이더바는 10%로 표시 (0-100 범위)
         volumeValue.textContent = '10%';
-        muteBtn.textContent = isMuted ? '🔇 전체 음소거' : '🔊 전체 음소거';
         applyGlobalVolume();
 
         // 슬라이더 조작 시
         effectVolume.addEventListener('input', (e) => {
-            globalVolume = parseFloat(e.target.value);
+            globalVolume = parseFloat(e.target.value) / 100; // 0-100을 0-1로 변환
             isMuted = (globalVolume === 0);
             applyGlobalVolume();
             volumeValue.textContent = Math.round(globalVolume * 100) + '%';
-            muteBtn.textContent = isMuted ? '🔇 전체 음소거' : '🔊 전체 음소거';
         });
 
         // 마우스 조작이 끝난 직후(마우스가 어디에 있든) 항상 포커스 이동
@@ -3504,24 +3526,6 @@ window.addEventListener('load', async () => {
             setTimeout(() => { document.getElementById('gameCanvas').focus(); }, 0);
         });
         effectVolume.addEventListener('blur', () => {
-            setTimeout(() => { document.getElementById('gameCanvas').focus(); }, 0);
-        });
-        // 음소거 버튼 클릭 시
-        muteBtn.addEventListener('click', () => {
-            if (!isMuted) {
-                isMuted = true;
-                applyGlobalVolume();
-                muteBtn.textContent = '🔇 전체 음소거 해제';
-                effectVolume.value = 0;
-                volumeValue.textContent = '0%';
-            } else {
-                isMuted = false;
-                if (globalVolume === 0) globalVolume = 0.5;
-                effectVolume.value = 0.1; // 슬라이더바는 10%로 표시
-                applyGlobalVolume();
-                muteBtn.textContent = '🔊 전체 음소거';
-                volumeValue.textContent = '10%';
-            }
             setTimeout(() => { document.getElementById('gameCanvas').focus(); }, 0);
         });
     } catch (error) {
@@ -3554,9 +3558,8 @@ document.addEventListener('keydown', (e) => {
     // 사운드 패널이나 컨트롤에 포커스가 있는 경우에만 키보드 입력 무시
     const activeElement = document.activeElement;
     const isSoundPanelFocused = activeElement && (
-        activeElement.id === 'effectVolume' ||
-        activeElement.id === 'muteBtn' ||
-        activeElement.closest('#soundPanel')
+        activeElement.id === 'sfx-volume' ||
+        activeElement.closest('#sound-control-panel')
     );
 
     if (isSoundPanelFocused) {
@@ -3641,9 +3644,8 @@ document.addEventListener('keyup', (e) => {
     // 사운드 패널이나 컨트롤에 포커스가 있는 경우에만 키보드 입력 무시
     const activeElement = document.activeElement;
     const isSoundPanelFocused = activeElement && (
-        activeElement.id === 'effectVolume' ||
-        activeElement.id === 'muteBtn' ||
-        activeElement.closest('#soundPanel')
+        activeElement.id === 'sfx-volume' ||
+        activeElement.closest('#sound-control-panel')
     );
 
     if (isSoundPanelFocused) {
@@ -3669,7 +3671,7 @@ function handleGameOver() {
         gameOverStartTime = Date.now();
         
         // 플레이어 파괴 폭발 효과음 재생
-        gameSoundManager.play('explosion', { volume: 0.8 });
+        gameSoundManager.play('explosion');
         
         // 최고 점수 저장
         const finalScore = Math.max(score, highScore);
@@ -3691,6 +3693,11 @@ function handleGameOver() {
 function updateScore(points) {
     score += points;
     levelScore += points;
+    
+    // 디버깅: 레벨업 진행 상황 확인 (로그 빈도 줄임)
+    if (levelScore >= levelUpScore * 0.8 && Math.random() < 0.1) { // 레벨업까지 80% 이상일 때, 10% 확률로만 로그
+        console.log(`레벨업 임박 - 현재 레벨: ${gameLevel}, 레벨 점수: ${levelScore}/${levelUpScore}`);
+    }
     
     // 특수 무기 게이지 증가
     specialWeaponCharge += points;
@@ -3853,15 +3860,15 @@ function handleBullets() {
 const BOSS_SETTINGS = {
     HEALTH: 1000,        // 기본 체력
     DAMAGE: 50,          // 보스 총알 데미지
-    SPEED: 1,           // 보스 이동 속도 (1.5에서 1로 더 감소)
-    BULLET_SPEED: 3,    // 보스 총알 속도 (4에서 3으로 더 감소)
+    SPEED: 1.2,           // 보스 이동 속도 (1에서 1.2로 증가, 20% 증가)
+    BULLET_SPEED: 3.6,    // 보스 총알 속도 (3에서 3.6으로 증가, 20% 증가)
     PATTERN_INTERVAL: 2000, // 패턴 변경 간격
-    SPAWN_INTERVAL: 10000,  // 보스 출현 간격 (10초)
+    SPAWN_INTERVAL: 5000,   // 보스 출현 간격 (5초로 단축)
     BONUS_SCORE: 500,    // 보스 처치 보너스 점수를 500으로 설정
     PHASE_THRESHOLDS: [  // 페이즈 전환 체력 임계값
-        { health: 750, speed: 1.5, bulletSpeed: 4 }, // 속도 더 감소
-        { health: 500, speed: 2, bulletSpeed: 5 },   // 속도 더 감소
-        { health: 250, speed: 2.5, bulletSpeed: 6 }   // 속도 더 감소
+        { health: 750, speed: 1.8, bulletSpeed: 4.8 }, // 속도 20% 증가
+        { health: 500, speed: 2.4, bulletSpeed: 6 },   // 속도 20% 증가
+        { health: 250, speed: 3, bulletSpeed: 7.2 }   // 속도 20% 증가
     ]
 };
 
@@ -4022,7 +4029,7 @@ function handleBossPattern(boss) {
         updateScore(BOSS_SETTINGS.BONUS_SCORE);
         
         // 보스 파괴 폭발 효과음 재생
-        gameSoundManager.play('explosion', { volume: 0.7 });
+        gameSoundManager.play('explosion');
         
         // 레벨 1~5에서 패턴 사용 기록
         if (gameLevel <= 5 && boss.singlePattern) {
@@ -4036,7 +4043,7 @@ function handleBossPattern(boss) {
         maxLives++; // 최대 목숨 증가
         
         // 보스 파괴 시간 기록 (다음 보스 생성까지의 쿨다운 적용)
-        lastBossSpawnTime = Date.now();
+        lastBossSpawnTime = Date.now() - 6000; // 6초 전으로 설정하여 즉시 보스 생성 가능
         
         // 큰 폭발 효과
         explosions.push(new Explosion(
@@ -4193,21 +4200,24 @@ function handleBossPattern(boss) {
     // 보스 체력에 따른 패턴 강화
     const healthPercentage = boss.health / BOSS_SETTINGS.HEALTH;
     if (healthPercentage < 0.3) {  // 체력 30% 이하
-        boss.bulletSpeed = BOSS_SETTINGS.BULLET_SPEED * 1.5;  // 총알 속도 증가
+        boss.bulletSpeed = BOSS_SETTINGS.BULLET_SPEED * 1.8;  // 총알 속도 증가 (1.5에서 1.8로, 20% 추가 증가)
         boss.lastShot = Math.min(boss.lastShot, currentTime - 500);  // 공격 간격 감소
     } else if (healthPercentage < 0.6) {  // 체력 60% 이하
-        boss.bulletSpeed = BOSS_SETTINGS.BULLET_SPEED * 1.2;  // 총알 속도 약간 증가
+        boss.bulletSpeed = BOSS_SETTINGS.BULLET_SPEED * 1.44;  // 총알 속도 약간 증가 (1.2에서 1.44로, 20% 추가 증가)
         boss.lastShot = Math.min(boss.lastShot, currentTime - 200);  // 공격 간격 약간 감소
     }
 }
 
 // 개별 패턴 실행 함수
 function executeBossPattern(boss, pattern, currentTime) {
-    console.log(`패턴 실행 시도: ${pattern}`);
+    // 로그 빈도 줄임 (1% 확률로만 출력)
+    if (Math.random() < 0.01) {
+        console.log(`패턴 실행 시도: ${pattern}`);
+    }
     switch (pattern) {
         case BOSS_PATTERNS.BASIC:
             // 기본 패턴: 직선 발사 (느린 속도)
-            if (currentTime - boss.lastShot >= 1500) {
+            if (currentTime - boss.lastShot >= 1200) {  // 1500에서 1200으로 감소 (20% 빨라짐)
                 boss.lastShot = currentTime;
                 createBossBullet(boss, Math.PI / 2, pattern);  // 일반 폭탄
             }
@@ -4532,7 +4542,7 @@ function createBossBullet(boss, angle, pattern = null) {
         y: boss.y + boss.height/2,
         width: 22,  // 보스 총알 크기 22x22 (크기 균형 조정)
         height: 22, // 보스 총알 크기 22x22 (크기 균형 조정)
-        speed: boss.bulletSpeed, // 속도 원상복구
+        speed: boss.bulletSpeed * 1.2, // 속도 20% 증가
         angle: angle,
         isBossBullet: true,
         damage: BOSS_SETTINGS.DAMAGE,
@@ -4552,19 +4562,23 @@ function checkLevelUp() {
         levelScore = 0;
         levelUpScore = gameLevel === 1 ? 3000 : 1000 * gameLevel; // 레벨1->2는 3000점, 나머지는 기존 방식
         
+        console.log(`레벨업! 현재 레벨: ${gameLevel}`);
+        
         // 현재 난이도 설정 가져오기
         const currentDifficulty = difficultySettings[Math.min(gameLevel, 5)] || {
-            enemySpeed: 6 + (gameLevel - 5) * 0.5,
+            enemySpeed: 7.2 + (gameLevel - 5) * 0.6,  // 6에서 7.2로 증가 (20% 증가)
             enemySpawnRate: 0.06 + (gameLevel - 5) * 0.01,
-            horizontalSpeedRange: 6 + (gameLevel - 5) * 0.5,
+            horizontalSpeedRange: 7.2 + (gameLevel - 5) * 0.6,  // 6에서 7.2로 증가 (20% 증가)
             patternChance: 1.0,
             maxEnemies: 20 + (gameLevel - 5) * 2,
             bossHealth: 1000 + (gameLevel - 5) * 250,  // 2000 → 1000, 500 → 250
-            bossSpawnInterval: 10000,  // 10초로 고정
+            bossSpawnInterval: 5000,   // 5초로 단축
             powerUpChance: 0.3,
             bombDropChance: 0.3,
             dynamiteDropChance: 0.25
         };
+        
+        console.log('새로운 난이도 설정:', currentDifficulty);
         
         // 보스 설정 업데이트
         BOSS_SETTINGS.HEALTH = currentDifficulty.bossHealth;
@@ -5152,327 +5166,16 @@ function setSoundControlActive(active) {
 document.addEventListener('keydown', handleGameInput);
 document.addEventListener('keyup', handleGameInputRelease);
 
-// 게임 초기화 함수 수정
-async function initializeGame() {
-    console.log('게임 초기화 시작');
-    isGameActive = true;
-    isSoundControlActive = false;
-    
-    try {
-        // 종료 이벤트 핸들러 설정
-        setupExitHandlers();
-        
-        // 최고 점수 로드
-        highScore = await loadHighScore();
-        console.log('초기화된 최고 점수:', highScore);
-        
-        // === 모든 게임 요소 완전 초기화 ===
-        
-        // 1. 충돌 및 게임 상태 초기화
-        collisionCount = 0;
-        maxLives = 5;  // 최대 목숨 초기화
-        hasSecondPlane = false;
-        secondPlaneTimer = 0;
-        
-        // 2. 모든 배열 완전 초기화
-        score = 0;
-        levelScore = 0;
-        bullets = [];           // 총알 배열 초기화
-        enemies = [];           // 적 비행기 배열 초기화
-        explosions = [];        // 폭발 효과 배열 초기화
-        bombs = [];             // 폭탄 배열 초기화
-        dynamites = [];         // 다이나마이트 배열 초기화
-        powerUps = [];          // 파워업 배열 초기화
-        snakeEnemies = [];      // 뱀 패턴 적 배열 초기화
-        snakeGroups = [];       // 뱀 패턴 그룹 배열 초기화
-        
-        // 3. 게임 상태 초기화
-        isGameOver = false;
-        isPaused = false;
-        flashTimer = 0;
-        gameOverStartTime = null;
-        
-        // 4. 뱀 패턴 상태 초기화
-        isSnakePatternActive = false;
-        snakePatternTimer = 0;
-        snakePatternInterval = 0;
-        lastSnakeGroupTime = 0;
-        
-        // 5. 보스 관련 상태 완전 초기화
-        bossActive = false;
-        bossHealth = 0;
-        bossDestroyed = false;
-        bossPattern = 0;
-        lastBossSpawnTime = Date.now();
-        
-        // 6. 플레이어 초기 위치 설정
-        player.x = canvas.width / 2;
-        player.y = canvas.height - 80;
-        secondPlane.x = canvas.width / 2 - 60;
-        secondPlane.y = canvas.height - 80;
-        
-        // 7. 게임 타이머 초기화
-        lastEnemySpawnTime = 0;
-        
-        // 8. 파워업 상태 초기화
-        hasSpreadShot = false;
-        hasShield = false;
-        damageMultiplier = 1;
-        fireRateMultiplier = 1;
-        
-        // 9. 발사 관련 상태 초기화
-        lastFireTime = 0;
-        isSpacePressed = false;
-        spacePressTime = 0;
-        fireDelay = 500;  // 800에서 500으로 감소 - 더 빠른 연속 발사 전환
-        continuousFireDelay = 50;  // 25에서 50으로 증가 - 시각적 흐름 개선
-        bulletSpeed = 7;  // 10에서 7로 더 감소
-        baseBulletSize = 4.5;
-        isContinuousFire = false;
-        canFire = true;
-        lastReleaseTime = 0;
-        singleShotCooldown = 500;
-        minPressDuration = 200;
-        minReleaseDuration = 100;
-        
-        // 10. 특수무기 관련 상태 초기화
-        specialWeaponCharged = false;
-        specialWeaponCharge = 0;
-        specialWeaponCount = 0;
-        
-        // 11. 키보드 입력 상태 초기화
-        Object.keys(keys).forEach(key => {
-            keys[key] = false;
-        });
-        
-        // 12. 사운드 관련 상태 초기화
-        lastCollisionTime = 0;
-        lastExplosionTime = 0;
-        
-        // 13. 패턴 추적 시스템 초기화
-        levelBossPatterns.usedPatterns = [];
-        levelBossPatterns.currentLevelPattern = null;
-        
-        console.log('게임 상태 초기화 완료');
-        console.log('초기화된 상태:', {
-            enemies: enemies.length,
-            bullets: bullets.length,
-            explosions: explosions.length,
-            bombs: bombs.length,
-            dynamites: dynamites.length,
-            powerUps: powerUps.length,
-            snakeGroups: snakeGroups.length,
-            bossActive: bossActive,
-            isSnakePatternActive: isSnakePatternActive
-        });
-        
-        // 게임 루프 시작
-        requestAnimationFrame(gameLoop);
-        console.log('게임 루프 시작됨');
-        
-    } catch (error) {
-        console.error('게임 초기화 중 오류:', error);
-    }
-}
-
-// 게임 재시작 함수 수정
-function restartGame() {
-    // 게임 상태 초기화
-    isGameActive = true;
-    isSoundControlActive = false;
-    isGameOver = false;
-    
-    console.log('게임 재시작 - 재시작 전 최고 점수:', highScore);
-    
-    // 현재 최고 점수 저장
-    const currentHighScore = Math.max(score, highScore);
-    if (currentHighScore > 0) {
-        saveHighScoreDirectly(currentHighScore, 'restartGame');
-    }
-    
-    // === 모든 게임 요소 완전 초기화 ===
-    
-    // 1. 충돌 및 게임 상태 초기화
-    collisionCount = 0;
-    maxLives = 5;  // 최대 목숨 초기화
-    hasSecondPlane = false;
-    secondPlaneTimer = 0;
-    
-    // 2. 모든 배열 완전 초기화
-    enemies = [];           // 적 비행기 배열 초기화
-    bullets = [];           // 총알 배열 초기화
-    explosions = [];        // 폭발 효과 배열 초기화
-    bombs = [];             // 폭탄 배열 초기화
-    dynamites = [];         // 다이나마이트 배열 초기화
-    powerUps = [];          // 파워업 배열 초기화
-    snakeEnemies = [];      // 뱀 패턴 적 배열 초기화
-    snakeGroups = [];       // 뱀 패턴 그룹 배열 초기화
-    
-    // 3. 플레이어 위치 초기화
-    player.x = canvas.width / 2;
-    player.y = canvas.height - 80;
-    secondPlane.x = canvas.width / 2 - 60;
-    secondPlane.y = canvas.height - 80;
-    
-    // 4. 게임 타이머 및 상태 초기화
-    gameOverStartTime = null;
-    flashTimer = 0;
-    lastEnemySpawnTime = 0;
-    lastBossSpawnTime = Date.now();
-    
-    // 5. 점수 및 레벨 초기화
-    score = 0;
-    levelScore = 0;
-    gameLevel = 1;
-    levelUpScore = 3000; // 레벨1->2는 3000점
-    
-    // 6. 특수무기 관련 상태 초기화
-    specialWeaponCharged = false;
-    specialWeaponCharge = 0;
-    specialWeaponCount = 0;
-    
-    // 7. 보스 관련 상태 완전 초기화
-    bossActive = false;
-    bossHealth = 0;
-    bossDestroyed = false;
-    bossPattern = 0;
-    
-    // 8. 뱀 패턴 상태 초기화
-    isSnakePatternActive = false;
-    snakePatternTimer = 0;
-    snakePatternInterval = 0;
-    lastSnakeGroupTime = 0;
-    
-    // 9. 파워업 상태 초기화
-    hasSpreadShot = false;
-    hasShield = false;
-    damageMultiplier = 1;
-    fireRateMultiplier = 1;
-    
-    // 10. 발사 관련 상태 초기화
-    lastFireTime = 0;
-    isSpacePressed = false;
-    spacePressTime = 0;
-    fireDelay = 500;  // 800에서 500으로 감소 - 더 빠른 연속 발사 전환
-    continuousFireDelay = 50;  // 25에서 50으로 증가 - 시각적 흐름 개선
-    bulletSpeed = 7;  // 12에서 7로 수정
-    baseBulletSize = 4.5;
-    isContinuousFire = false;
-    canFire = true;
-    lastReleaseTime = 0;
-    singleShotCooldown = 500;
-    minPressDuration = 200;
-    minReleaseDuration = 100;
-    
-    // 11. 키보드 입력 상태 초기화
-    Object.keys(keys).forEach(key => {
-        keys[key] = false;
-    });
-    
-    // 12. 게임 화면 상태 초기화
-    isStartScreen = false;
-    isPaused = false;
-    
-    // 13. 사운드 관련 상태 초기화
-    lastCollisionTime = 0;
-    lastExplosionTime = 0;
-    
-    // 14. 경고음 초기화
-    initializeWarningSound();
-    
-    // 15. 패턴 추적 시스템 초기화
-    levelBossPatterns.usedPatterns = [];
-    levelBossPatterns.currentLevelPattern = null;
-    
-    // 15. 캔버스 포커스 설정
-    setTimeout(() => {
-        document.getElementById('gameCanvas').focus();
-    }, 100);
-    
-    // 패턴 사용 기록 초기화
-    resetPatternUsage();
-    
-    console.log('게임 재시작 완료 - 모든 요소 초기화됨');
-    console.log('현재 최고 점수:', highScore);
-    console.log('초기화된 상태:', {
-        enemies: enemies.length,
-        bullets: bullets.length,
-        explosions: explosions.length,
-        bombs: bombs.length,
-        dynamites: dynamites.length,
-        powerUps: powerUps.length,
-        snakeGroups: snakeGroups.length,
-        bossActive: bossActive,
-        isSnakePatternActive: isSnakePatternActive
-    });
-}
-
-// 사운드 컨트롤 이벤트 핸들러 추가
-window.addEventListener('message', (e) => {
-    if (e.data === 'soundControlStart') {
-        setSoundControlActive(true);
-    } else if (e.data === 'soundControlEnd') {
-        setSoundControlActive(false);
-    }
+// 페이지 로드 시 효과음 패널 설정
+document.addEventListener('DOMContentLoaded', function() {
+    createSoundControlPanel();
 });
-
-// 랜덤 보스 패턴 선택 함수 수정
-function getRandomBossPattern() {
-    let patterns = Object.values(BOSS_PATTERNS);
-    // 레벨 5 미만에서는 CIRCLE_SHOT 제외
-    if (gameLevel < 5) {
-        patterns = patterns.filter(p => p !== BOSS_PATTERNS.CIRCLE_SHOT);
-    }
-    return patterns[Math.floor(Math.random() * patterns.length)];
-}
-
-// 레벨별 패턴 추적 시스템 추가
-let levelBossPatterns = {
-    usedPatterns: [], // 사용한 패턴들 기록
-    currentLevelPattern: null, // 현재 레벨에서 사용할 패턴
-    patternSequence: [
-        // 새로운 모양 패턴들을 앞쪽에 배치
-        BOSS_PATTERNS.HEART_SHOT,
-        BOSS_PATTERNS.STAR_SHOT,
-        BOSS_PATTERNS.FLOWER_SHOT,
-        BOSS_PATTERNS.BUTTERFLY_SHOT,
-        BOSS_PATTERNS.FIREWORK_SHOT,
-        BOSS_PATTERNS.CHAOS_SHOT,
-        BOSS_PATTERNS.ICE_SHOT,
-        BOSS_PATTERNS.DRAGON_SHOT,
-        BOSS_PATTERNS.LIGHTNING_SHOT,
-        BOSS_PATTERNS.CRYSTAL_SHOT,
-        BOSS_PATTERNS.CLOUD_SHOT,
-        BOSS_PATTERNS.GEAR_SHOT,
-        BOSS_PATTERNS.ARROW_SHOT,
-        BOSS_PATTERNS.SHIELD_SHOT,
-        BOSS_PATTERNS.CROWN_SHOT,
-        BOSS_PATTERNS.MOON_SHOT,
-        // 기존 패턴들
-        BOSS_PATTERNS.CIRCLE_SHOT,
-        BOSS_PATTERNS.CROSS_SHOT,
-        BOSS_PATTERNS.SPIRAL_SHOT,
-        BOSS_PATTERNS.WAVE_SHOT,
-        BOSS_PATTERNS.DIAMOND_SHOT,
-        BOSS_PATTERNS.DOUBLE_SPIRAL,
-        BOSS_PATTERNS.TRIPLE_WAVE,
-        BOSS_PATTERNS.BURST_SHOT
-    ]
-};
-
-// 패턴 사용 기록 초기화 함수
-function resetPatternUsage() {
-    levelBossPatterns.usedPatterns = [];
-    levelBossPatterns.currentLevelPattern = null;
-    console.log('패턴 사용 기록 초기화됨');
-    console.log('사용 가능한 패턴들:', levelBossPatterns.patternSequence.map(p => p).join(', '));
-}
 
 // 효과음 패널 설정 함수
 function createSoundControlPanel() {
     const panel = document.createElement('div');
     panel.id = 'sound-control-panel';
-    panel.style.position = 'static'; // fixed에서 static으로 변경
+    panel.style.position = 'static';
     panel.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
     panel.style.padding = '12px';
     panel.style.borderRadius = '8px';
@@ -5487,7 +5190,7 @@ function createSoundControlPanel() {
     panel.style.gap = '5px';
     panel.style.boxSizing = 'border-box';
     panel.style.boxShadow = '0 2px 12px rgba(0,0,0,0.2)';
-    panel.style.margin = '0 auto'; // 가운데 정렬
+    panel.style.margin = '0 auto';
 
     // 볼륨 컨트롤 추가
     const volumeControl = document.createElement('div');
@@ -5497,7 +5200,7 @@ function createSoundControlPanel() {
     volumeControl.style.width = '100%';
     volumeControl.innerHTML = `
         <label style="white-space: nowrap;">효과음 볼륨:</label>
-        <input type="range" min="0" max="100" value="10" id="sfx-volume" style="flex: 1; min-width: 120px; max-width: 200px;"> 
+        <input type="range" min="0" max="100" value="10" id="sfx-volume" style="flex: 1; min-width: 120px; max-width: 200px; cursor: pointer; pointer-events: auto;"> 
         <span id="volume-value" style="min-width: 40px; text-align:right;">10%</span>
     `;
     panel.appendChild(volumeControl);
@@ -5507,7 +5210,6 @@ function createSoundControlPanel() {
     if (canvasContainer && canvasContainer.parentNode) {
         canvasContainer.parentNode.insertBefore(panel, canvasContainer.nextSibling);
     } else {
-        // fallback: body에 추가
         document.body.appendChild(panel);
     }
     setupSoundControlEvents();
@@ -5519,72 +5221,61 @@ function setupSoundControlEvents() {
     const volumeValue = document.getElementById('volume-value');
     
     if (sfxVolumeSlider && volumeValue) {
-        // 초기 볼륨 설정 - 10%로 고정
         const initialVolume = 10;
         sfxVolumeSlider.value = initialVolume;
         volumeValue.textContent = `${initialVolume}%`;
-        
-        // 사운드 매니저도 10%로 설정
         gameSoundManager.setVolume(0.1);
         
+        // 슬라이더 이벤트 리스너 추가
         sfxVolumeSlider.addEventListener('input', function(e) {
-            e.stopPropagation();  // 이벤트 전파 중단
-            const volume = this.value / 100;  // 0-1 사이의 값으로 변환
-            volumeValue.textContent = `${this.value}%`;
-            
-            // 사운드 매니저를 통해 볼륨 업데이트
+            const volume = parseFloat(e.target.value) / 100;
+            volumeValue.textContent = `${e.target.value}%`;
             gameSoundManager.setVolume(volume);
-        });
-
-        // 마우스 이벤트가 다른 요소에 영향을 주지 않도록 처리
-        sfxVolumeSlider.addEventListener('mousedown', function(e) {
-            e.stopPropagation();
+            globalVolume = volume;
+            applyGlobalVolume();
         });
         
-        sfxVolumeSlider.addEventListener('mouseup', function(e) {
-            e.stopPropagation();
-            this.blur();  // 포커스 제거
+        // 슬라이더 변경 이벤트 리스너 추가
+        sfxVolumeSlider.addEventListener('change', function(e) {
+            const volume = parseFloat(e.target.value) / 100;
+            volumeValue.textContent = `${e.target.value}%`;
+            gameSoundManager.setVolume(volume);
+            globalVolume = volume;
+            applyGlobalVolume();
         });
     }
 }
 
 function setupPanelDrag(panel) {
     let isDragging = false;
-    let startX, startY, startLeft, startTop;
+    let startX = 0;
+    let startY = 0;
+    let initialX = 0;
+    let initialY = 0;
 
-    // 드래그 시작
-    panel.addEventListener('mousedown', function(e) {
-        if (e.target.tagName === 'INPUT' || e.target.tagName === 'LABEL' || e.target.tagName === 'SPAN') {
-            return; // 입력 요소에서는 드래그하지 않음
+    function handleDragStart(e) {
+        // 슬라이더나 입력 요소에서는 드래그 비활성화
+        if (e.target.tagName === 'INPUT' || e.target.type === 'range') {
+            return;
         }
         
         isDragging = true;
         startX = e.clientX;
         startY = e.clientY;
-        
-        // 현재 위치 가져오기
-        const rect = panel.getBoundingClientRect();
-        startLeft = rect.left;
-        startTop = rect.top;
-        
+        initialX = panel.offsetLeft;
+        initialY = panel.offsetTop;
         panel.style.position = 'fixed';
-        panel.style.left = startLeft + 'px';
-        panel.style.top = startTop + 'px';
-        
-        document.addEventListener('mousemove', handleDrag);
-        document.addEventListener('mouseup', handleDragEnd);
-        
+        panel.style.left = initialX + 'px';
+        panel.style.top = initialY + 'px';
         e.preventDefault();
-    });
+    }
 
     function handleDrag(e) {
         if (!isDragging) return;
-        
         const deltaX = e.clientX - startX;
         const deltaY = e.clientY - startY;
-        
-        panel.style.left = (startLeft + deltaX) + 'px';
-        panel.style.top = (startTop + deltaY) + 'px';
+        panel.style.left = (initialX + deltaX) + 'px';
+        panel.style.top = (initialY + deltaY) + 'px';
     }
 
     function handleDragEnd() {
@@ -5592,9 +5283,26 @@ function setupPanelDrag(panel) {
         document.removeEventListener('mousemove', handleDrag);
         document.removeEventListener('mouseup', handleDragEnd);
     }
-}
 
-// 페이지 로드 시 효과음 패널 설정
-document.addEventListener('DOMContentLoaded', function() {
-    createSoundControlPanel();
-});
+    panel.addEventListener('mousedown', handleDragStart);
+    document.addEventListener('mousemove', handleDrag);
+    document.addEventListener('mouseup', handleDragEnd);
+
+    panel.addEventListener('mousedown', (e) => {
+        // 슬라이더에서는 preventDefault 하지 않음
+        if (e.target.tagName !== 'INPUT' && e.target.type !== 'range') {
+            e.preventDefault();
+        }
+    });
+
+    panel.addEventListener('click', (e) => {
+        // 슬라이더 클릭은 전파 허용
+        if (e.target.tagName !== 'INPUT' && e.target.type !== 'range') {
+            e.stopPropagation();
+        }
+    });
+
+    panel.addEventListener('mouseleave', () => {
+        document.getElementById('gameCanvas').focus();
+    });
+}
